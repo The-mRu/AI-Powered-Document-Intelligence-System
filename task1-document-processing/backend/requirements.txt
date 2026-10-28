@@ -1,0 +1,9 @@
+pymupdf
+pytesseract
+opencv-python-headless
+pillow
+numpy
+pandas
+openpyxl
+xlrd
+pytest
