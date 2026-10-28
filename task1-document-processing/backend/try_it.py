@@ -1,7 +1,12 @@
 import sys
-from app.pipelines import process_file
+from app.pipelines import process_file, ProcessingError
 
-doc = process_file(sys.argv[1])
+try:
+    doc = process_file(sys.argv[1])
+except ProcessingError as e:
+    print(f"REJECTED [{e.code}]: {e}")
+    sys.exit(1)
+
 print("status:", doc.status, "| warnings:", doc.warnings)
 with open("out.txt", "w", encoding="utf-8") as f:
     for p in doc.pages:

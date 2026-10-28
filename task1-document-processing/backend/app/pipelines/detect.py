@@ -3,7 +3,10 @@ Users rename files and attackers lie about extensions; content is the truth."""
 import zipfile
 from pathlib import Path
 
-from .errors import CorruptedFileError, FileTooLargeError, UnsupportedFileError
+import olefile
+
+from .errors import (CorruptedFileError, EncryptedFileError, FileTooLargeError,
+                     UnsupportedFileError)
 
 MAX_UNCOMPRESSED_XLSX = 300 * 1024 * 1024  # zip-bomb guard
 
@@ -28,7 +31,7 @@ def detect_kind(path: Path) -> str:
     if head.startswith(b"PK\x03\x04"):
         return _check_xlsx(path)
     if head.startswith(_OLE):
-        return "xls"  # xlrd will confirm; OLE is also used by .doc/.ppt
+        return _check_ole(path)
     if head.startswith((b"\xff\xfe", b"\xfe\xff", b"\xef\xbb\xbf")):
         return "csv" if path.suffix.lower() in _TEXT_EXT else _unsupported(path)
     if path.suffix.lower() in _TEXT_EXT:
@@ -46,10 +49,32 @@ def _check_xlsx(path: Path) -> str:
     except zipfile.BadZipFile as e:
         raise CorruptedFileError(f"Corrupted ZIP/XLSX container: {e}") from e
     if "xl/workbook.xml" not in names:
+        if "word/document.xml" in names:
+            raise UnsupportedFileError("Word documents (.docx) are not supported; export to PDF first")
+        if "ppt/presentation.xml" in names:
+            raise UnsupportedFileError("PowerPoint files are not supported; export to PDF first")
         raise UnsupportedFileError("ZIP archive that is not an Excel workbook")
     if total > MAX_UNCOMPRESSED_XLSX:
         raise FileTooLargeError("Workbook expands to an unsafe size")
     return "xlsx"
+
+
+def _check_ole(path: Path) -> str:
+    """Old Office formats (.xls, .doc, .ppt) and password-protected .xlsx all share
+    one container signature. Look at the streams inside to tell them apart."""
+    try:
+        with olefile.OleFileIO(path) as ole:
+            if ole.exists("EncryptedPackage"):
+                raise EncryptedFileError("Workbook is password protected")
+            if ole.exists("Workbook") or ole.exists("Book"):
+                return "xls"
+            if ole.exists("WordDocument"):
+                raise UnsupportedFileError("Word documents (.doc) are not supported; export to PDF first")
+            if ole.exists("PowerPoint Document"):
+                raise UnsupportedFileError("PowerPoint files are not supported; export to PDF first")
+    except OSError as e:  # olefile raises OSError on a damaged container
+        raise CorruptedFileError(f"Corrupted Office file: {e}") from e
+    raise UnsupportedFileError("Unrecognized legacy Office document")
 
 
 def _unsupported(path: Path):

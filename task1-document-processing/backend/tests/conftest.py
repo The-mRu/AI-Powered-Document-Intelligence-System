@@ -125,3 +125,22 @@ def semicolon_csv(tmp_path):
     p = tmp_path / "eu.csv"
     p.write_bytes("Rechnung;Lieferant;Betrag\n00123;Müller GmbH;1150,50\n00124;Société Générale;99,00\n".encode("cp1252"))
     return p
+
+
+@pytest.fixture
+def real_xls(tmp_path):
+    """A genuine legacy .xls binary (written by xlwt), not a fake header."""
+    import xlwt
+    wb = xlwt.Workbook()
+    ws = wb.add_sheet("Invoices")
+    ws.write(0, 0, "ACME Corp - Legacy Register")
+    for c, h in enumerate(["Invoice No", "Date", "Supplier", "Total"]):
+        ws.write(2, c, h)
+    for r, row in enumerate([["00123", "2024-01-05", "Acme Trading", 1150.0],
+                             ["00124", "2024-01-09", "Globex", 99.5]], start=3):
+        for c, v in enumerate(row):
+            ws.write(r, c, v)
+    wb.add_sheet("Second").write(0, 0, "Item")
+    p = tmp_path / "legacy.xls"
+    wb.save(str(p))
+    return p

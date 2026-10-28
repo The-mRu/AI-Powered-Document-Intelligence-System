@@ -163,3 +163,40 @@ def test_oversize_file_rejected(tmp_path, monkeypatch, digital_pdf):
     monkeypatch.setattr(router, "MAX_FILE_BYTES", 100)
     with pytest.raises(FileTooLargeError):
         process_file(digital_pdf)
+
+
+# ---------- Real .xls and legacy Office containers ----------
+def test_real_xls_is_parsed(real_xls):
+    doc = process_file(real_xls)
+    assert doc.kind == "xls"
+    inv = doc.sheets[0]
+    assert inv.header_row == 3 and inv.columns == ["Invoice No", "Date", "Supplier", "Total"]
+    assert inv.rows[0]["Invoice No"] == "00123" and inv.rows[1]["Total"] == 99.5
+
+
+@pytest.mark.parametrize("stream,exc", [("WordDocument", UnsupportedFileError),
+                                        ("PowerPoint Document", UnsupportedFileError),
+                                        ("EncryptedPackage", EncryptedFileError)])
+def test_legacy_office_containers_get_accurate_errors(tmp_path, monkeypatch, stream, exc):
+    from app.pipelines import detect
+
+    class FakeOle:
+        def __init__(self, *_): pass
+        def __enter__(self): return self
+        def __exit__(self, *_): return False
+        def exists(self, name): return name == stream
+
+    monkeypatch.setattr(detect.olefile, "OleFileIO", FakeOle)
+    p = tmp_path / "x.doc"
+    p.write_bytes(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 100)
+    with pytest.raises(exc):
+        process_file(p)
+
+
+def test_docx_gets_helpful_message(tmp_path):
+    import zipfile
+    p = tmp_path / "a.docx"
+    with zipfile.ZipFile(p, "w") as z:
+        z.writestr("word/document.xml", "<x/>")
+    with pytest.raises(UnsupportedFileError, match="export to PDF"):
+        process_file(p)
