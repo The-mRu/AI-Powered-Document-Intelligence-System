@@ -14,3 +14,6 @@ with open("out.txt", "w", encoding="utf-8") as f:
         print(header)
         f.write(header + "\n" + p.text + "\n")
 print("full text saved to out.txt")
+
+# docker run --rm --env-file .env -v ${PWD}:/code docintel python try_it.py samples/invoice-sample.pdf  
+#  docker run --rm --env-file .env -v ${PWD}:/code docintel python try_it.py "samples/Standard Grocery Bill.jpg"   

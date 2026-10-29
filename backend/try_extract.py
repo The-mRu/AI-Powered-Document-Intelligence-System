@@ -16,3 +16,7 @@ except (ProcessingError, ExtractionError) as e:
 print(json.dumps(result, indent=2, ensure_ascii=False))
 with open("extraction.json", "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
+
+# docker run --rm --env-file .env -v ${PWD}:/code docintel python try_extract.py "samples/Standard Grocery Bill.jpg"
+# docker run --rm --env-file .env -v ${PWD}:/code docintel python try_extract.py samples/invoice-sample.pdf
+
