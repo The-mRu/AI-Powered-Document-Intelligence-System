@@ -22,6 +22,8 @@ x-backend: &backend
 services:
   db:
     image: pgvector/pgvector:pg16
+    ports:
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: ${DB_PASSWORD:-app}

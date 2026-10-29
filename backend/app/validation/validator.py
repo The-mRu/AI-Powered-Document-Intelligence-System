@@ -112,30 +112,46 @@ def _numeric_sanity(x, issues, tol, today):
 
 def _header_arithmetic(x, issues, tol):
     sub, tax, disc, total = _d(x, "subtotal"), _d(x, "tax"), _d(x, "discount"), _d(x, "total")
+    shipping = _d(x, "shipping") or Decimal(0)
+    other = _d(x, "other_charges") or Decimal(0)
     if total is None or sub is None:
         if total is not None or sub is not None:
             issues.append(Issue("cannot_verify_totals", "warning",
                                 "Subtotal or total is missing, so the amounts cannot be cross-checked", "total"))
-        return
-    disc = abs(disc) if disc is not None else Decimal(0)
-    t = tax if tax is not None else Decimal(0)
-    identities = {"tax_exclusive": sub + t - disc, "tax_inclusive": sub - disc}
-    matched = [k for k, v in identities.items() if abs(v - total) <= tol]
-    if matched:
-        used = matched[0]
-        issues.append(Issue("totals_consistent", "info", f"Totals reconcile ({used.replace('_', ' ')} subtotal)",
-                            "total", {"identity": used}))
-        if used == "tax_inclusive" and t > 0:
-            issues.append(Issue("subtotal_includes_tax", "info",
-                                "Subtotal appears to already include tax", "subtotal"))
-        return
-    issues.append(Issue("total_mismatch", "error",
-                        f"Totals do not reconcile: subtotal {_s(sub)} + tax {_s(t)} - discount {_s(disc)} "
-                        f"= {_s(identities['tax_exclusive'])}, but total is {_s(total)}",
-                        "total", {"subtotal": _s(sub), "tax": _s(t), "discount": _s(disc), "total": _s(total),
-                                  "expected_tax_exclusive": _s(identities["tax_exclusive"]),
-                                  "expected_tax_inclusive": _s(identities["tax_inclusive"]),
-                                  "tax_missing": tax is None}))
+    else:
+        disc = abs(disc) if disc is not None else Decimal(0)
+        t = tax if tax is not None else Decimal(0)
+        identities = {"tax_exclusive": sub + t - disc + shipping + other,
+                      "tax_inclusive": sub - disc + shipping + other}
+        matched = [k for k, v in identities.items() if abs(v - total) <= tol]
+        if matched:
+            used = matched[0]
+            issues.append(Issue("totals_consistent", "info", f"Totals reconcile ({used.replace('_', ' ')} subtotal)",
+                                "total", {"identity": used}))
+            if used == "tax_inclusive" and t > 0:
+                issues.append(Issue("subtotal_includes_tax", "info",
+                                    "Subtotal appears to already include tax", "subtotal"))
+        else:
+            issues.append(Issue("total_mismatch", "error",
+                                f"Totals do not reconcile: subtotal {_s(sub)} + tax {_s(t)} - discount {_s(disc)} "
+                                f"+ shipping {_s(shipping)} + other charges {_s(other)} "
+                                f"= {_s(identities['tax_exclusive'])}, but total is {_s(total)}",
+                                "total", {"subtotal": _s(sub), "tax": _s(t), "discount": _s(disc), "total": _s(total),
+                                          "expected_tax_exclusive": _s(identities["tax_exclusive"]),
+                                          "expected_tax_inclusive": _s(identities["tax_inclusive"]),
+                                          "shipping": _s(shipping), "other_charges": _s(other),
+                                          "tax_missing": tax is None}))
+    payments, balance = _d(x, "payments_received"), _d(x, "balance_due")
+    if payments is not None and balance is not None:
+        expected = total - payments
+        if abs(expected - balance) <= tol:
+            issues.append(Issue("balance_due_consistent", "info",
+                                "Balance due equals invoice total less payments received", "balance_due"))
+        else:
+            issues.append(Issue("balance_due_mismatch", "error",
+                                f"Balance due {_s(balance)} does not equal total {_s(total)} less payments {_s(payments)}",
+                                "balance_due", {"expected": _s(expected), "total": _s(total),
+                                                "payments_received": _s(payments)}))
 
 
 def _line_items(x, issues, tol):

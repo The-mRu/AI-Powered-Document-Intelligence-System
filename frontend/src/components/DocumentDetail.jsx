@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
-import { ACTIVE, FIELDS, READY, friendly } from "../constants";
+import { ACTIVE, FIELDS, GENERAL_FIELDS, PARTY_FIELDS, READY, friendly } from "../constants";
 import Badge from "./Badge";
 
-const ITEM_KEYS = ["description", "quantity", "unit", "unit_price", "line_total"];
+const ITEM_KEYS = ["description", "quantity", "unit", "unit_price", "line_total", "tax", "discount"];
 const blankToNull = (v) => (v === "" || v === undefined ? null : v);
 const normItem = (li) => Object.fromEntries(ITEM_KEYS.map((k) => [k, blankToNull(li[k] ?? null)]));
 
@@ -19,12 +19,12 @@ export default function DocumentDetail({ id, onChanged }) {
     const d = await api.detail(id);
     setDoc(d);
     if (READY.includes(d.status)) {
-      const [r, p] = await Promise.all([api.result(id), api.pages(id, 20)]);
+      const [r, p] = await Promise.all([api.result(id), api.pages(id)]);
       setResult(r);
       setPages(p.items);
     } else {
       setResult(null);
-      if (d.status === "failed") setPages((await api.pages(id, 20)).items);
+      if (d.status === "failed") setPages((await api.pages(id)).items);
     }
     return d;
   }, [id]);
@@ -109,6 +109,11 @@ export default function DocumentDetail({ id, onChanged }) {
   const order = { error: 0, warning: 1 };
   const problems = issues.filter((i) => i.severity !== "info").sort((a, b) => order[a.severity] - order[b.severity]);
   const checks = issues.filter((i) => i.severity === "info");
+  const partySections = [
+    ["Supplier / From", PARTY_FIELDS.supplier],
+    ["Customer / Bill To", PARTY_FIELDS.customer],
+    ["Shipping Recipient / Ship To", PARTY_FIELDS.shipping],
+  ];
 
   return (
     <section className="card">
@@ -172,12 +177,38 @@ export default function DocumentDetail({ id, onChanged }) {
             )}
           </div>
 
+          <div className="party-sections">
+            {partySections.map(([title, fields]) => (
+              <section key={title}>
+                <h4>{title}</h4>
+                <table className="grid">
+                  <tbody>
+                    {fields.map(([key, label]) => {
+                      const f = eff[key] || {};
+                      return (
+                        <tr key={key}>
+                          <td>{label}</td>
+                          <td>{edit ? (
+                            <input aria-label={`${title} ${label}`} value={edit.fields[key] ?? ""}
+                              onChange={(e) => setEdit({ ...edit, fields: { ...edit.fields, [key]: e.target.value } })} />
+                          ) : f.value ?? <span className="muted">— not found —</span>}</td>
+                          <td><Badge kind={f.status || "missing"} />{f.flags?.map((fl) => <small key={fl} className="chip">{fl}</small>)}</td>
+                          <td><small className="muted evidence">{f.evidence}</small></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </section>
+            ))}
+          </div>
+
           <table className="grid">
             <thead>
               <tr><th>Field</th><th>Value</th><th>Status</th><th>Evidence</th></tr>
             </thead>
             <tbody>
-              {FIELDS.map(([k, label]) => {
+              {GENERAL_FIELDS.map(([k, label]) => {
                 const f = eff[k] || {};
                 return (
                   <tr key={k}>
@@ -201,7 +232,7 @@ export default function DocumentDetail({ id, onChanged }) {
           <h3>Line items</h3>
           <table className="grid">
             <thead>
-              <tr><th>Description</th><th>Qty</th><th>Unit</th><th>Unit price</th><th>Line total</th>{edit && <th />}</tr>
+              <tr><th>Description</th><th>Qty</th><th>Unit</th><th>Unit price</th><th>Line total</th><th>Tax</th><th>Discount</th><th>Evidence</th>{edit && <th />}</tr>
             </thead>
             <tbody>
               {(edit ? edit.items : eff.line_items || []).map((li, n) => (
@@ -213,12 +244,29 @@ export default function DocumentDetail({ id, onChanged }) {
                       ) : li[k] ?? ""}
                     </td>
                   ))}
+                  {!edit && (
+                    <td>
+                      <div className="line-evidence">
+                        {ITEM_KEYS.map((field) => li[field] != null && (
+                          <small key={field} className="muted evidence">
+                            <strong>{field.replace("_", " ")}:</strong> {li[field]}
+                          </small>
+                        ))}
+                        {li.evidence && (
+                          <details>
+                            <summary>Source row</summary>
+                            <small className="muted evidence">{li.evidence}</small>
+                          </details>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   {edit && (
                     <td><button className="ghost" onClick={() => setEdit({ ...edit, items: edit.items.filter((_, i) => i !== n) })}>✕</button></td>
                   )}
                 </tr>
               ))}
-              {!(edit ? edit.items : eff.line_items || []).length && <tr><td colSpan={6} className="muted">No line items</td></tr>}
+              {!(edit ? edit.items : eff.line_items || []).length && <tr><td colSpan={9} className="muted">No line items</td></tr>}
             </tbody>
           </table>
           {edit && (
@@ -248,7 +296,7 @@ export default function DocumentDetail({ id, onChanged }) {
                 {p.confidence != null ? ` · OCR confidence ${Math.round(p.confidence)}%` : ""} · {p.duration_ms} ms
                 {p.error ? ` · ERROR: ${p.error}` : ""}
               </small>
-              <pre className="pagetext">{p.text.slice(0, 4000)}</pre>
+              <pre className="pagetext">{p.text}</pre>
             </div>
           ))}
         </details>

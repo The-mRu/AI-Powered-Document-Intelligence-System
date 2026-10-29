@@ -1,6 +1,10 @@
 \restrict jVDp5M0z0eda2HaaozuKQuqvfPuXLdALHpu0QxnVKKsyOeVTxK8Pfcokw2OcAOg
 CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
 COMMENT ON EXTENSION vector IS 'vector data type and ivfflat and hnsw access methods';
+-- Authoritative relational schema for app.db.models. Extraction party fields,
+-- line items, evidence, and validation metadata are intentionally stored in
+-- extractions.data/corrected/validation JSONB; their shape is defined by the
+-- Python extraction and validation schemas, not by additional SQL columns.
 CREATE TABLE public.corrections (
     id bigint NOT NULL,
     document_id character varying(36) NOT NULL,
@@ -53,6 +57,9 @@ CREATE TABLE public.extractions (
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL
 );
+COMMENT ON COLUMN public.extractions.data IS 'Verified structured extraction JSON, including party fields, line_items, evidence, and review metadata';
+COMMENT ON COLUMN public.extractions.corrected IS 'Human corrections JSON; may include fields and an ordered line_items array';
+COMMENT ON COLUMN public.extractions.validation IS 'Validation report JSON containing issues, status, and review reasons';
 CREATE TABLE public.pages (
     id bigint NOT NULL,
     document_id character varying(36) NOT NULL,

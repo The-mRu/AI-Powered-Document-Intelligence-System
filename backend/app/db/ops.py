@@ -28,7 +28,8 @@ def effective_extraction(data: dict, corrected: dict | None) -> dict:
     if corrected.get("line_items") is not None:
         eff["line_items"] = [{"description": li.get("description"), "quantity": li.get("quantity"),
                               "unit": li.get("unit"), "unit_price": li.get("unit_price"),
-                              "line_total": li.get("line_total"), "confidence": 1.0,
+                              "line_total": li.get("line_total"), "tax": li.get("tax"),
+                              "discount": li.get("discount"), "confidence": 1.0,
                               "evidence": "manual correction", "flags": []} for li in corrected["line_items"]]
         review.discard("line_items")
     eff["needs_review_fields"] = sorted(review)

@@ -1,14 +1,23 @@
-export const FIELDS = [
+export const PARTY_FIELDS = {
+  supplier: [["supplier_name", "Name"], ["supplier_address", "Address"], ["supplier_city", "City"], ["supplier_postal_code", "Postal code"]],
+  customer: [["customer_name", "Name"], ["customer_address", "Address"], ["customer_city", "City"], ["customer_postal_code", "Postal code"]],
+  shipping: [["ship_to_name", "Name"], ["ship_to_address", "Address"], ["ship_to_city", "City"], ["ship_to_postal_code", "Postal code"]],
+};
+
+export const GENERAL_FIELDS = [
   ["invoice_number", "Invoice number"],
   ["invoice_date", "Invoice date (YYYY-MM-DD)"],
-  ["supplier_name", "Supplier"],
-  ["customer_name", "Customer"],
   ["subtotal", "Subtotal"],
   ["tax", "Tax"],
   ["discount", "Discount"],
+  ["shipping", "Shipping"],
+  ["other_charges", "Other charges"],
   ["total", "Total"],
   ["currency", "Currency (e.g. USD)"],
+  ["payments_received", "Payments received"],
+  ["balance_due", "Balance due"],
 ];
+export const FIELDS = [...GENERAL_FIELDS, ...Object.values(PARTY_FIELDS).flat()];
 
 export const ACTIVE = ["queued", "processing"];
 export const READY = ["completed", "needs_review"];

@@ -172,6 +172,8 @@ class LineItemIn(BaseModel):
     unit: str | None = Field(default=None, max_length=32)
     unit_price: str | None = None
     line_total: str | None = None
+    tax: str | None = None
+    discount: str | None = None
 
 
 class CorrectionIn(BaseModel):
@@ -217,9 +219,9 @@ def correct_document(doc_id: str, body: CorrectionIn, db: Session = Depends(get_
         new_items = []
         for li in body.line_items:
             item = li.model_dump()
-            for k in ("quantity", "unit_price", "line_total"):
+            for k in ("quantity", "unit_price", "line_total", "tax", "discount"):
                 if item[k] is not None:
-                    d = to_decimal(item[k])
+                    d = to_decimal(item[k]) or (to_decimal(item[k].rstrip("%")) if item[k].endswith("%") else None)
                     if d is None:
                         raise HTTPException(422, f"line item '{k}' must be a plain decimal number")
                     item[k] = format(d, "f")

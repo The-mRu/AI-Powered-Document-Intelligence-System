@@ -29,9 +29,23 @@ class FakeLLM:
         return InvoiceLLM(
             invoice_number=_f(user, r"Invoice Number: (\S+)"), invoice_date=_f(user, r"Invoice Date: (\S+)"),
             supplier_name=_f(user, r"Supplier: (.+)"), customer_name=_f(user, r"Customer: (.+)"),
+            supplier_address=Field(value=None, confidence=0.0, evidence=None),
+            supplier_city=Field(value=None, confidence=0.0, evidence=None),
+            supplier_postal_code=Field(value=None, confidence=0.0, evidence=None),
+            customer_address=Field(value=None, confidence=0.0, evidence=None),
+            customer_city=Field(value=None, confidence=0.0, evidence=None),
+            customer_postal_code=Field(value=None, confidence=0.0, evidence=None),
+            ship_to_name=Field(value=None, confidence=0.0, evidence=None),
+            ship_to_address=Field(value=None, confidence=0.0, evidence=None),
+            ship_to_city=Field(value=None, confidence=0.0, evidence=None),
+            ship_to_postal_code=Field(value=None, confidence=0.0, evidence=None),
             subtotal=_f(user, r"Subtotal: ([\d.]+)"), tax=_f(user, r"Tax: ([\d.]+)"),
             discount=Field(value=None, confidence=0.0, evidence=None), total=_f(user, r"Total: ([\d.]+)"),
-            currency=_f(user, r"Currency: ([A-Z]{3})"), line_items=items), {"prompt_tokens": 1, "completion_tokens": 1}
+            currency=_f(user, r"Currency: ([A-Z]{3})"), line_items=items,
+            shipping=Field(value=None, confidence=0.0, evidence=None),
+            other_charges=Field(value=None, confidence=0.0, evidence=None),
+            payments_received=Field(value=None, confidence=0.0, evidence=None),
+            balance_due=Field(value=None, confidence=0.0, evidence=None)), {"prompt_tokens": 1, "completion_tokens": 1}
 
 
 class FakeEmbedder:

@@ -3,6 +3,7 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
@@ -31,6 +32,23 @@ app = FastAPI(title="Document Intelligence API", version="1.0", lifespan=lifespa
 app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in get_settings().cors_origins.split(",") if o.strip()],
                    allow_methods=["GET", "POST", "PATCH"], allow_headers=["*"])
 app.include_router(router)
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
+    upload = schema.get("components", {}).get("schemas", {}).get(
+        "Body_upload_documents_api_documents_post", {}
+    )
+    item = upload.get("properties", {}).get("files", {}).get("items", {})
+    if item.get("contentMediaType") == "application/octet-stream":
+        item["format"] = "binary"
+    app.openapi_schema = schema
+    return schema
+
+
+app.openapi = custom_openapi
 
 
 @app.get("/health")

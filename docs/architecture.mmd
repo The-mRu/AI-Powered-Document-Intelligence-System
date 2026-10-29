@@ -1,0 +1,19 @@
+flowchart LR
+    U[User / React UI] -->|HTTP| API[FastAPI API]
+    API --> DB[(PostgreSQL + pgvector)]
+    API --> Q[Redis queue]
+    Q --> W[Celery worker]
+    W --> R[Document router]
+    R --> PDF[PDF text layer / OCR]
+    R --> IMG[Image OCR]
+    R --> XLS[Excel / CSV parser]
+    PDF --> E[Structured extraction]
+    IMG --> E
+    XLS --> E
+    E --> V[Evidence verification]
+    V --> F[Financial validation]
+    F --> DB
+    DB --> S[Keyword search / pgvector semantic search]
+    S --> API
+    E -.-> L[OpenAI structured output]
+    S -.-> EMB[OpenAI embeddings]

@@ -22,21 +22,42 @@ class LineItem(BaseModel):
     line_total: str | None
     confidence: float
     evidence: str | None
+    tax: str | None = None
+    discount: str | None = None
 
 
 class InvoiceLLM(BaseModel):
     invoice_number: Field
     invoice_date: Field
     supplier_name: Field
+    supplier_address: Field
+    supplier_city: Field
+    supplier_postal_code: Field
     customer_name: Field
+    customer_address: Field
+    customer_city: Field
+    customer_postal_code: Field
+    ship_to_name: Field
+    ship_to_address: Field
+    ship_to_city: Field
+    ship_to_postal_code: Field
     subtotal: Field
     tax: Field
     discount: Field  # not in the brief, but needed to reconcile real invoices
     total: Field
     currency: Field
     line_items: list[LineItem]
+    shipping: Field | None
+    other_charges: Field | None
+    payments_received: Field | None
+    balance_due: Field | None
 
 
-SCALAR_FIELDS = ["invoice_number", "invoice_date", "supplier_name", "customer_name",
+SCALAR_FIELDS = ["invoice_number", "invoice_date", "supplier_name", "supplier_address",
+                 "supplier_city", "supplier_postal_code", "customer_name", "customer_address",
+                 "customer_city", "customer_postal_code", "ship_to_name", "ship_to_address",
+                 "ship_to_city", "ship_to_postal_code",
                  "subtotal", "tax", "discount", "total", "currency"]
-MONEY_FIELDS = {"subtotal", "tax", "discount", "total"}
+SCALAR_FIELDS += ["shipping", "other_charges", "payments_received", "balance_due"]
+MONEY_FIELDS = {"subtotal", "tax", "discount", "total", "shipping", "other_charges",
+                "payments_received", "balance_due"}

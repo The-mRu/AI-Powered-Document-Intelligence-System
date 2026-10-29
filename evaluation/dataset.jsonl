@@ -1,0 +1,2 @@
+{"id":"invoice-pdf","path":"backend/samples/invoice-sample.pdf","expected_kind":"pdf","expected_pages":1,"text_contains":["INVOICE"]}
+{"id":"grocery-image","path":"backend/samples/Standard Grocery Bill.jpg","expected_kind":"jpeg","expected_pages":1,"text_contains":["BILL TO","TOTAL"]}

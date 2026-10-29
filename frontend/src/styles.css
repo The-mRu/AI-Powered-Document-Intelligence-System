@@ -42,6 +42,7 @@ table.grid { width:100%; border-collapse:collapse; } .grid th, .grid td { text-a
 .grid th { color:var(--muted); font-weight:600; font-size:12px; } .grid input { width:100%; padding:3px 6px; }
 .grid tr.flagged { background:var(--warnbg); }
 .evidence { display:block; max-width:260px; overflow-wrap:anywhere; white-space:pre-wrap; }
+.line-evidence { display:grid; gap:0.2rem; min-width:220px; }
 .chip { margin-left:6px; padding:0 6px; border-radius:6px; background:var(--warnbg); color:var(--warn); }
 pre { white-space:pre-wrap; overflow-wrap:anywhere; margin:4px 0 8px; font-size:12px; }
 pre.pagetext { max-height:220px; overflow:auto; background:var(--bg); padding:8px; border-radius:6px; }

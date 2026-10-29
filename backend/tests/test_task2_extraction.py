@@ -38,8 +38,12 @@ def F(value=None, conf=0.0, ev=None):
 
 
 def make(**over) -> InvoiceLLM:
-    base = dict(invoice_number=F(), invoice_date=F(), supplier_name=F(), customer_name=F(),
+    base = dict(invoice_number=F(), invoice_date=F(), supplier_name=F(), supplier_address=F(),
+                supplier_city=F(), supplier_postal_code=F(), customer_name=F(),
+                customer_address=F(), customer_city=F(), customer_postal_code=F(),
+                ship_to_name=F(), ship_to_address=F(), ship_to_city=F(), ship_to_postal_code=F(),
                 subtotal=F(), tax=F(), discount=F(), total=F(), currency=F(), line_items=[])
+    base.update(shipping=F(), other_charges=F(), payments_received=F(), balance_due=F())
     base.update(over)
     return InvoiceLLM(**base)
 
@@ -129,6 +133,283 @@ def test_model_confidence_is_clamped():
 def test_whitespace_differences_in_evidence_are_tolerated():
     r = run(SLICED, sliced_answer(invoice_number=F("INV-3337", 0.9, "Invoice Number INV-3337")))
     assert "evidence_not_verbatim" not in r["invoice_number"]["flags"]
+
+
+def test_multiline_supplier_customer_evidence_and_percentages_are_preserved():
+    text = """Supplier:
+WORLDTHRILL INFORMATIONS
+PRIVATE LIMITED
+Customer:
+JARSH INNOVATIONS
+PRIVATE LIMITED
+Discount: 10%
+Tax: 10%
+Milk 2 litres 80 160"""
+    answer = make(
+        supplier_name=F("WORLDTHRILL INFORMATIONS PRIVATE LIMITED", 0.9,
+                         "WORLDTHRILL INFORMATIONS\nPRIVATE LIMITED"),
+        customer_name=F("JARSH INNOVATIONS PRIVATE LIMITED", 0.9,
+                         "JARSH INNOVATIONS\nPRIVATE LIMITED"),
+        discount=F("10%", 0.9, "Discount: 10%"),
+        tax=F("10%", 0.9, "Tax: 10%"),
+        line_items=[LineItem(description="Milk", quantity="2", unit="litres",
+                             unit_price="80", line_total="160", confidence=0.9,
+                             evidence="Milk 2 litres 80 160")],
+    )
+    result = run(text, answer)
+    assert result["supplier_name"]["value"] == "WORLDTHRILL INFORMATIONS PRIVATE LIMITED"
+    assert result["customer_name"]["value"] == "JARSH INNOVATIONS PRIVATE LIMITED"
+    assert result["tax"]["value"] == result["discount"]["value"] == "10%"
+    assert result["line_items"][0]["quantity"] == "2"
+    assert result["line_items"][0]["unit"] == "litres"
+
+
+def test_supplier_customer_match_ocr_soft_hyphen_and_wrapped_evidence():
+    text = """Supplier
+WORLDTHRILL INFORMATIONS PRIVATE\u00ad
+LIMITED
+Customer
+JARSH INNOVATIONS PRIVATE
+LIMITED"""
+    answer = make(
+        supplier_name=F("WORLDTHRILL INFORMATIONS PRIVATE LIMITED", 0.95,
+                         "WORLDTHRILL INFORMATIONS PRIVATE\nLIMITED"),
+        customer_name=F("JARSH INNOVATIONS PRIVATE LIMITED", 0.95,
+                         "JARSH INNOVATIONS PRIVATE\nLIMITED"),
+    )
+    result = run(text, answer)
+    for name in ("supplier_name", "customer_name"):
+        assert result[name]["value"] == answer.model_dump()[name]["value"]
+        assert result[name]["flags"] == []
+        assert result[name]["status"] == "ok"
+
+
+def test_name_evidence_tolerates_ocr_punctuation():
+    text = "FROM:\nWORLDTHRILL INFORMATIONS, PRIVATE LIMITED\nBILL TO:\nJARSH INNOVATIONS, PRIVATE LIMITED"
+    answer = make(
+        supplier_name=F("WORLDTHRILL INFORMATIONS PRIVATE LIMITED", 0.95,
+                         "FROM WORLDTHRILL INFORMATIONS PRIVATE LIMITED"),
+        customer_name=F("JARSH INNOVATIONS PRIVATE LIMITED", 0.95,
+                         "BILL TO JARSH INNOVATIONS PRIVATE LIMITED"),
+    )
+    result = run(text, answer)
+    assert result["supplier_name"]["flags"] == []
+    assert result["customer_name"]["flags"] == []
+
+
+def test_multicolumn_from_bill_to_ship_to_header_maps_names_and_all_rows():
+    text = """FROM:
+WORLDTHRILL INFORMATIONS
+PRIVATE LIMITED
+H.No: 18-A-37WP
+Hyderabad
+500054
+
+BILL TO:
+JARSH INNOVATIONS
+PRIVATE LIMITED
+H.No: 13-26/4
+Mumbai
+509321
+
+SHIP TO:
+JARSH COMPLEX
+H.No: 13-26/4
+Mumbai
+509876
+
+Milk 2 litres 10% 10% 80
+Milk 2 litres 10% 10% 80
+Milk 2 litres 10% 10% 80
+Milk 2 litres 10% 10% 80
+Milk 2 litres 10% 10% 80
+Milk 2 litres 10% 10% 80
+INR 12000"""
+    items = [
+        LineItem(description="Milk", quantity="2", unit="litres", tax="10%", discount="10%",
+                 unit_price="80", line_total="80", confidence=0.9,
+                 evidence="Milk 2 litres 10% 10% 80")
+        for _ in range(6)
+    ]
+    answer = make(
+        supplier_name=F("WORLDTHRILL INFORMATIONS PRIVATE LIMITED", 0.95,
+                         "WORLDTHRILL INFORMATIONS\nPRIVATE LIMITED"),
+        customer_name=F("JARSH INNOVATIONS PRIVATE LIMITED", 0.95,
+                         "JARSH INNOVATIONS\nPRIVATE LIMITED"),
+        currency=F("INR", 0.95, "INR"),
+        total=F("12000", 0.95, "INR 12000"),
+        line_items=items,
+    )
+    result = run(text, answer)
+    assert result["supplier_name"]["value"] == "WORLDTHRILL INFORMATIONS PRIVATE LIMITED"
+    assert result["customer_name"]["value"] == "JARSH INNOVATIONS PRIVATE LIMITED"
+    assert result["line_items"] and len(result["line_items"]) == 6
+    assert all(item["evidence"] == "Milk 2 litres 10% 10% 80" for item in result["line_items"])
+    assert result["total"]["value"] == "12000"
+
+
+def test_party_details_are_preserved_for_all_three_blocks():
+    text = """FROM
+WORLDTHRILL INFORMATIONS
+PRIVATE LIMITED
+H.No: 18-A-37WP
+Hyderabad
+500054
+BILL TO
+JARSH INNOVATIONS
+PRIVATE LIMITED
+H.No: 13-26/4
+Mumbai
+509321
+SHIP TO
+JARSH COMPLEX
+H.No: 13-26/4
+Mumbai
+509876"""
+    result = run(text, make(
+        supplier_name=F("WORLDTHRILL INFORMATIONS PRIVATE LIMITED", 0.9,
+                         "WORLDTHRILL INFORMATIONS\nPRIVATE LIMITED"),
+        supplier_address=F("H.No: 18-A-37WP", 0.9, "H.No: 18-A-37WP"),
+        supplier_city=F("Hyderabad", 0.9, "Hyderabad"),
+        supplier_postal_code=F("500054", 0.9, "500054"),
+        customer_name=F("JARSH INNOVATIONS PRIVATE LIMITED", 0.9,
+                         "JARSH INNOVATIONS\nPRIVATE LIMITED"),
+        customer_address=F("H.No: 13-26/4", 0.9, "H.No: 13-26/4"),
+        customer_city=F("Mumbai", 0.9, "Mumbai"),
+        customer_postal_code=F("509321", 0.9, "509321"),
+        ship_to_name=F("JARSH COMPLEX", 0.9, "JARSH COMPLEX"),
+        ship_to_address=F("H.No: 13-26/4", 0.9, "H.No: 13-26/4"),
+        ship_to_city=F("Mumbai", 0.9, "Mumbai"),
+        ship_to_postal_code=F("509876", 0.9, "509876"),
+    ))
+    for name in ("supplier_name", "supplier_address", "supplier_city", "supplier_postal_code",
+                 "customer_name", "customer_address", "customer_city", "customer_postal_code",
+                 "ship_to_name", "ship_to_address", "ship_to_city", "ship_to_postal_code"):
+        assert result[name]["value"] is not None
+        assert result[name]["flags"] == []
+
+
+def test_grocery_table_fallback_preserves_rows_and_row_evidence():
+    text = """FROM                       BILL TO               SHIP TO             INVOICE
+WORLDTHRILL INFORMATIONS   JARSH INNOVATIONS
+PRIVATE LIMITED              PRIVATE LIMITED
+H.No: 18-A-37WP               H.No: 13-26/4             H.No: 13-26/4            Invoice number
+Hyderabad                  Mumbai               Mumbai                 Date:
+500054                      509321                 509876             #####
+S.NO NAME QTY DISCOUNT TAX PRICE
+1 Milk 2 litres 10% 10% 80
+1 Milk 2 litres 10% 10% 80
+1 Milk 2 litres 10% 10% 80
+1 Milk 2 litres 10% 10% 80
+1 Milk 2 litres 10% 10% 80
+1 Milk 2 litres 10% 10% 80
+TOTAL : RS: 12000/-"""
+    one = LineItem(description="Milk", quantity="2", unit="litres", tax="10%", discount="10%",
+                   unit_price="80", line_total="80", confidence=1.0,
+                   evidence="1 Milk 2 litres 10% 10% 80")
+    result = run(text, make(
+        supplier_name=F("WORLDTHRILL INFORMATIONS PRIVATE LIMITED", 0.9, "WORLDTHRILL INFORMATIONS\nPRIVATE LIMITED"),
+        customer_name=F("JARSH INNOVATIONS PRIVATE LIMITED", 0.9, "JARSH INNOVATIONS\nPRIVATE LIMITED"),
+        total=F("12000", 0.9, "TOTAL : RS: 12000/-"),
+        line_items=[one],
+    ))
+    assert len(result["line_items"]) == 6
+    assert [item["description"] for item in result["line_items"]] == ["Milk"] * 6
+    assert [item["evidence"] for item in result["line_items"]] == [
+        "1 Milk 2 litres 10% 10% 80"
+    ] * 6
+    assert all(item["unit_price"] == "80" and item["line_total"] is None for item in result["line_items"])
+    assert result["total"]["value"] == "12000"
+    assert result["supplier_name"]["value"] == "WORLDTHRILL INFORMATIONS PRIVATE LIMITED"
+    assert result["customer_name"]["value"] == "JARSH INNOVATIONS PRIVATE LIMITED"
+
+
+def test_exact_grocery_ocr_layout_recovers_party_names_and_rows():
+    text = """INVOICE
+FROM                       BILL TO               SHIP TO             INVOICE
+WORLDTHRILL INFORMATIONS   JARSH INNOVATIONS
+                                              JARSH COMPLEX       INVOICE
+PRIVATE LIMITED              PRIVATE LIMITED
+H.No: 18-A-37WP               H.No: 13-26/4             H.No: 13-26/4            Invoice number
+Hyderabad                  Mumbai               Mumbai                 Date:
+500054                      509321                 509876             #####
+
+S.NO       NAME        QTY        DISCOUNT       TAX         PRICE
+1             Milk         2 litres         10%          10%           80
+1             Milk         2 litres         10%          10%           80
+1             Milk         2 litres         10%          10%           80
+1             Milk         2 litres         10%          10%           80
+1             Milk         2 litres         10%          10%           80
+1             Milk         2 litres         10%          10%           80
+TOTAL :                             RS: 12000/-"""
+    result = run(text, make(
+        supplier_name=F("WORLDTHRILL INFORMATIONS PRIVATE LIMITED", 0.9, "WORLDTHRILL INFORMATIONS\nPRIVATE LIMITED"),
+        customer_name=F("JARSH INNOVATIONS PRIVATE LIMITED", 0.9, "JARSH INNOVATIONS\nPRIVATE LIMITED"),
+        supplier_address=F("H.No: 18-A-37WP", 0.9, "H.No: 18-A-37WP"),
+        supplier_city=F("Hyderabad", 0.9, "Hyderabad"),
+        supplier_postal_code=F("500054", 0.9, "500054"),
+        customer_address=F("H.No: 13-26/4", 0.9, "H.No: 13-26/4"),
+        customer_city=F("Mumbai", 0.9, "Mumbai"),
+        customer_postal_code=F("509321", 0.9, "509321"),
+        ship_to_name=F("JARSH COMPLEX", 0.9, "JARSH COMPLEX"),
+        ship_to_address=F("H.No: 13-26/4", 0.9, "H.No: 13-26/4"),
+        ship_to_city=F("Mumbai", 0.9, "Mumbai"),
+        ship_to_postal_code=F("509876", 0.9, "509876"),
+        total=F("12000", 0.9, "TOTAL : RS: 12000/-"),
+    ))
+    assert result["supplier_name"]["value"] == "WORLDTHRILL INFORMATIONS PRIVATE LIMITED"
+    assert result["customer_name"]["value"] == "JARSH INNOVATIONS PRIVATE LIMITED"
+    assert result["ship_to_name"]["value"] == "JARSH COMPLEX"
+    assert result["supplier_postal_code"]["value"] == "500054"
+    assert result["customer_postal_code"]["value"] == "509321"
+    assert result["ship_to_postal_code"]["value"] == "509876"
+    assert len(result["line_items"]) == 6
+    assert all(item["line_total"] is None for item in result["line_items"])
+    assert result["total"]["value"] == "12000"
+
+
+def test_labeled_party_fallback_rejects_total_as_subtotal_and_keeps_names():
+    text = """FROM
+WORLDTHRILL INFORMATIONS
+PRIVATE LIMITED
+H.No: 18-A-37WP
+BILL TO
+JARSH INNOVATIONS
+PRIVATE LIMITED
+H.No: 13-26/4
+TOTAL:
+RS: 12000/-"""
+    answer = make(
+        supplier_name=F("WORLDTHRILL INFORMATIONS PRIVATE LIMITED", 0.9,
+                         "FROM WORLDTHRILL INFORMATIONS PRIVATE LIMITED ADDRESS"),
+        customer_name=F("JARSH INNOVATIONS PRIVATE LIMITED", 0.9,
+                         "BILL TO JARSH INNOVATIONS PRIVATE LIMITED ADDRESS"),
+        subtotal=F("12000", 0.9, "TOTAL: RS: 12000/-"),
+        total=F("12000", 0.9, "TOTAL: RS: 12000/-"),
+    )
+    result = run(text, answer)
+    assert result["supplier_name"]["value"] == "WORLDTHRILL INFORMATIONS PRIVATE LIMITED"
+    assert result["customer_name"]["value"] == "JARSH INNOVATIONS PRIVATE LIMITED"
+    assert result["subtotal"]["value"] is None
+    assert "subtotal_label_not_in_evidence" in result["subtotal"]["flags"]
+
+
+def test_flattened_multicolumn_ocr_party_fallback():
+    text = """INVOICE
+FROM BILL TO
+WORLDTHRILL INFORMATIONS JARSH INNOVATIONS
+PRIVATE LIMITED PRIVATE LIMITED
+H.No: 18-A-37WP- H.No: 13-26/4"""
+    result = run(text, make(
+        supplier_name=F("WORLDTHRILL INFORMATIONS PRIVATE LIMITED", 0.9,
+                         "FROM WORLDTHRILL INFORMATIONS PRIVATE LIMITED"),
+        customer_name=F("JARSH INNOVATIONS PRIVATE LIMITED", 0.9,
+                         "BILL TO JARSH INNOVATIONS PRIVATE LIMITED"),
+    ))
+    assert result["supplier_name"]["value"] == "WORLDTHRILL INFORMATIONS PRIVATE LIMITED"
+    assert result["customer_name"]["value"] == "JARSH INNOVATIONS PRIVATE LIMITED"
+    assert result["supplier_name"]["flags"] == []
+    assert result["customer_name"]["flags"] == []
 
 
 def test_ambiguous_numeric_date_is_flagged_low_confidence():

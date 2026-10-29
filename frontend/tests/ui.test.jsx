@@ -19,6 +19,9 @@ const RESULT = {
   document_id: "d1", status: "needs_review", corrections: null,
   effective: {
     invoice_number: field("INV-1"), invoice_date: field("2024-03-15"), supplier_name: field("Acme"), customer_name: field("Globex"),
+    supplier_address: field("1 Main St"), supplier_city: field("Hyderabad"), supplier_postal_code: field("500054"),
+    customer_address: field("2 Market St"), customer_city: field("Mumbai"), customer_postal_code: field("509321"),
+    ship_to_name: field("Jarsh Complex"), ship_to_address: field("3 Delivery Rd"), ship_to_city: field("Mumbai"), ship_to_postal_code: field("509876"),
     subtotal: field("100.00"), tax: field("10.00"), discount: field(null, "missing"), total: field("110.00"), currency: field(null, "missing"),
     line_items: [{ description: "Widget", quantity: "2", unit: null, unit_price: "50.00", line_total: "100.00", flags: [] }],
   },
@@ -81,6 +84,39 @@ describe("DocumentDetail", () => {
     expect(screen.getByText("1 issue(s) need review")).toBeInTheDocument();
     expect(screen.getByText("INV-1")).toBeInTheDocument();
     expect(screen.getByText("Approve as is")).toBeInTheDocument();
+  });
+
+  it("renders every returned line item and payment fields", async () => {
+    api.result.mockResolvedValue({
+      ...RESULT,
+      effective: {
+        ...RESULT.effective,
+        payments_received: field("20.00"),
+        balance_due: field("90.00"),
+        line_items: Array.from({ length: 6 }, (_, i) => ({
+          description: `Milk ${i + 1}`, quantity: "2", unit: "litres",
+          unit_price: "80", line_total: "160", tax: "10%", discount: "10%",
+          evidence: "Milk 2 litres 80 160", flags: [],
+        })),
+      },
+    });
+
+    render(<DocumentDetail id="d1" onChanged={() => {}} />);
+    expect(await screen.findByText("Payments received")).toBeInTheDocument();
+    expect(screen.getByText("20.00")).toBeInTheDocument();
+    const lineTable = screen.getByText("Line items").nextElementSibling;
+    expect(within(lineTable).getAllByRole("row")).toHaveLength(7);
+    expect(screen.getAllByText(/quantity:/)).toHaveLength(6);
+    expect(screen.getAllByText(/tax:/)).toHaveLength(6);
+  });
+
+  it("renders all invoice parties separately", async () => {
+    render(<DocumentDetail id="d1" onChanged={() => {}} />);
+    expect(await screen.findByText("Supplier / From")).toBeInTheDocument();
+    expect(screen.getByText("Customer / Bill To")).toBeInTheDocument();
+    expect(screen.getByText("Shipping Recipient / Ship To")).toBeInTheDocument();
+    expect(screen.getByText("Acme")).toBeInTheDocument();
+    expect(screen.getByText("Jarsh Complex")).toBeInTheDocument();
   });
 
   it("sends only the changed fields when saving a correction", async () => {

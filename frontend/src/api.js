@@ -44,7 +44,7 @@ export const api = {
   list: (params) => request(`/api/documents${qs(params)}`),
   detail: (id) => request(`/api/documents/${id}`),
   result: (id) => request(`/api/documents/${id}/result`),
-  pages: (id, limit = 20) => request(`/api/documents/${id}/pages${qs({ limit })}`),
+  pages: (id, limit = 200) => request(`/api/documents/${id}/pages${qs({ limit })}`),
   correct: (id, body) => request(`/api/documents/${id}/corrections`, json("PATCH", body)),
   approve: (id) => request(`/api/documents/${id}/approve`, { method: "POST" }),
   reprocess: (id, force = false) => request(`/api/documents/${id}/reprocess${qs({ force: force || undefined })}`, { method: "POST" }),

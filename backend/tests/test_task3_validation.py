@@ -118,6 +118,22 @@ def test_discount_sign_does_not_matter():
     assert "total_mismatch" not in rules(run(x))
 
 
+def test_shipping_and_payments_are_included_in_reconciliation():
+    x = mod(SLICED, subtotal=f("1018.10"), tax=f("52.66"), discount=f("0"),
+            shipping=f("35.00"), total=f("1105.76"),
+            payments_received=f("200.00"), balance_due=f("905.76"))
+    r = run(x)
+    assert "total_mismatch" not in rules(r)
+    assert "balance_due_consistent" in rules(r, "info")
+
+
+def test_incorrect_printed_total_is_reported():
+    x = mod(SLICED, subtotal=f("480.00"), tax=f("48.00"), discount=f("48.00"),
+            total=f("12000.00"),
+            line_items=[item("Milk", "2", "80.00", "160.00")] * 6)
+    assert "total_mismatch" in rules(run(x), "error")
+
+
 # ---------- line items ----------
 def test_line_total_mismatch_with_no_tax_explanation_is_an_error():
     x = mod(SLICED, line_items=[item("Web Design", "2", "85.00", "85.00")])
