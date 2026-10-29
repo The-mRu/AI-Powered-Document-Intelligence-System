@@ -1,0 +1,76 @@
+# One command runs the whole system:   docker compose up --build
+# Web UI:    http://localhost:3000
+# API docs:  http://localhost:8000/docs      Health: http://localhost:8000/health
+
+x-backend: &backend
+  build: ./backend
+  image: docintel-backend
+  working_dir: /code
+  env_file: ./backend/.env           # OPENAI_API_KEY etc. (copy backend/.env.example first)
+  environment: &env
+    PYTHONPATH: /code
+    DATABASE_URL: postgresql+psycopg://app:${DB_PASSWORD:-app}@db:5432/docintel
+    REDIS_URL: redis://redis:6379/0
+    STORAGE_DIR: /storage
+  volumes:
+    - ./backend:/code
+    - storage:/storage
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
+      POSTGRES_DB: docintel
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d docintel"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  api:
+    <<: *backend
+    # command: uvicorn app.main:app --host 0.0.0.0 --port 
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+    working_dir: /code/app
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    <<: *backend
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      <<: *env
+      OMP_THREAD_LIMIT: "1"          # Tesseract: one thread per page, parallelism comes from workers
+    depends_on:
+      api: { condition: service_healthy }   # the API creates the tables on startup
+
+  frontend:
+    build: ./frontend                # React UI served by nginx; nginx proxies /api to the api service
+    ports:
+      - "3000:80"
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  storage:

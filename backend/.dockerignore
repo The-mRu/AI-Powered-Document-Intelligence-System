@@ -1,0 +1,11 @@
+# Keep secrets and junk OUT of the image (COPY . . would otherwise bake .env into it)
+.env
+.git
+**/__pycache__
+*.pyc
+.pytest_cache
+samples
+storage
+out.txt
+extraction.json
+validation.json

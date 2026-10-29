@@ -1,4 +1,5 @@
 """Single entry point used by the Celery task."""
+import os
 from pathlib import Path
 from typing import Callable
 
@@ -9,7 +10,8 @@ from .models import PageResult, ProcessedDocument
 from .pdf import iter_pdf_pages
 from .spreadsheet import process_spreadsheet
 
-MAX_FILE_BYTES = 50 * 1024 * 1024
+# One knob (MAX_UPLOAD_MB) for both the upload endpoint and the pipeline. A ~1000-page scan is easily 100+ MB.
+MAX_FILE_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "500")) * 1024 * 1024
 
 EXT_TO_KIND = {".pdf": "pdf", ".jpg": "jpeg", ".jpeg": "jpeg", ".png": "png",
                ".tif": "tiff", ".tiff": "tiff", ".xlsx": "xlsx", ".xls": "xls",
