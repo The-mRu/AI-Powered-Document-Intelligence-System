@@ -6,14 +6,22 @@ from sqlalchemy.orm import sessionmaker
 from app.config import get_settings
 
 
+def create_database_engine(database_url: str):
+    return create_engine(database_url, pool_pre_ping=True, pool_size=10, max_overflow=10)
+
+
+def create_sessionmaker(engine):
+    return sessionmaker(engine, expire_on_commit=False)
+
+
 @lru_cache
 def get_engine():
-    return create_engine(get_settings().database_url, pool_pre_ping=True, pool_size=10, max_overflow=10)
+    return create_database_engine(get_settings().database_url)
 
 
 @lru_cache
 def get_sessionmaker():
-    return sessionmaker(get_engine(), expire_on_commit=False)
+    return create_sessionmaker(get_engine())
 
 
 def get_db():
@@ -24,12 +32,12 @@ def get_db():
         db.close()
 
 
-def init_db() -> None:
+def init_db(engine=None) -> None:
     """Create the extension + tables if missing. (A migration tool such as Alembic is the
     next step for schema *changes*; for a fresh install create_all is enough.)"""
     from .models import Base
 
-    engine = get_engine()
+    engine = engine or get_engine()
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.create_all(engine)

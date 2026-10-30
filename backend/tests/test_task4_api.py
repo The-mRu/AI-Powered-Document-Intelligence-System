@@ -11,9 +11,10 @@ if not _BASE:
 
 from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.engine import make_url  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 _url = make_url(_BASE)
-_test_url = _url.set(database=f"{_url.database}_test")
+_test_url = _url.set(database="docintel_test")
 try:
     _admin = create_engine(_url.set(database="postgres"), isolation_level="AUTOCOMMIT")
     with _admin.connect() as c:
@@ -21,7 +22,11 @@ try:
             c.execute(text(f'CREATE DATABASE "{_test_url.database}"'))
 except Exception as e:  # noqa: BLE001
     pytest.skip(f"PostgreSQL not reachable: {type(e).__name__}", allow_module_level=True)
-os.environ["DATABASE_URL"] = _test_url.render_as_string(hide_password=False)
+_test_engine = create_engine(_test_url, pool_pre_ping=True)
+_test_sessionmaker = sessionmaker(_test_engine, expire_on_commit=False)
+from .db_isolation import assert_test_database, truncate_test_database  # noqa: E402
+
+assert_test_database(_test_engine)
 
 import io  # noqa: E402
 
@@ -31,11 +36,27 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app import services  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.db.models import Correction, Page, ValidationIssue  # noqa: E402
-from app.db.session import get_engine, get_sessionmaker, init_db  # noqa: E402
+from app.db.session import get_db, init_db  # noqa: E402
 from app.main import app  # noqa: E402
+from app import main as main_module  # noqa: E402
+from app.workers import pipeline  # noqa: E402
 from app.workers.celery_app import celery_app  # noqa: E402
 
 from .fakes import FakeEmbedder, FakeLLM  # noqa: E402
+
+
+def _test_db():
+    db = _test_sessionmaker()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+app.dependency_overrides[get_db] = _test_db
+main_module.get_engine = lambda: _test_engine
+main_module.init_db = lambda: init_db(_test_engine)
+pipeline.get_sessionmaker = lambda: _test_sessionmaker
 
 
 def make_pdf(number="INV-1001", total="110.00", currency="USD", supplier="Acme Trading Ltd", extra="") -> bytes:
@@ -55,7 +76,7 @@ def make_pdf(number="INV-1001", total="110.00", currency="USD", supplier="Acme T
 
 @pytest.fixture(scope="session", autouse=True)
 def _schema():
-    init_db()
+    init_db(_test_engine)
     celery_app.conf.update(task_always_eager=True, task_eager_propagates=True)
 
 
@@ -64,9 +85,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("STORAGE_DIR", str(tmp_path / "storage"))
     monkeypatch.delenv("API_KEY", raising=False)
     get_settings.cache_clear()
-    with get_engine().begin() as c:
-        c.execute(text("TRUNCATE documents, pages, extractions, validation_issues, processing_events, "
-                       "corrections RESTART IDENTITY CASCADE"))
+    truncate_test_database(_test_engine)
     llm = FakeLLM()
     monkeypatch.setattr(services, "get_llm", lambda: llm)
     monkeypatch.setattr(services, "get_embedder", lambda: FakeEmbedder())
@@ -108,6 +127,25 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_test_database_configuration_is_explicit():
+    with _test_engine.connect() as connection:
+        assert connection.execute(text("SELECT current_database()")).scalar() == "docintel_test"
+    assert str(_test_engine.url).split("@")[-1].endswith("/docintel_test")
+
+
+def test_production_database_is_rejected_by_cleanup_guard():
+    production_engine = create_engine(_url)
+    with pytest.raises(RuntimeError, match="docintel_test"):
+        truncate_test_database(production_engine)
+    production_engine.dispose()
+
+
+def test_api_requests_use_test_database(client):
+    d = upload_one(client)
+    with _test_sessionmaker() as db:
+        assert db.query(Page).filter(Page.document_id == d["id"]).count() == 1
+
+
 def test_upload_processes_end_to_end(client):
     d = upload_one(client)
     detail = client.get(f"/api/documents/{d['id']}").json()
@@ -118,7 +156,7 @@ def test_upload_processes_end_to_end(client):
     assert res["effective"]["invoice_number"]["value"] == "INV-1001"
     assert res["effective"]["total"]["value"] == "110.00"
     assert client.get(f"/api/documents/{d['id']}/pages").json()["items"][0]["method"] == "text_layer"
-    with get_sessionmaker()() as db:
+    with _test_sessionmaker() as db:
         assert db.query(Page).filter(Page.embedding.is_not(None)).count() == 1
 
 
@@ -242,7 +280,7 @@ def test_correction_fixes_missing_currency_and_is_audited(client):
     body = r.json()
     assert body["effective"]["currency"]["value"] == "USD" and body["extraction_ai"]["currency"]["value"] is None
     assert body["status"] == "completed"
-    with get_sessionmaker()() as db:
+    with _test_sessionmaker() as db:
         c = db.query(Correction).one()
         assert (c.field, c.old_value, c.new_value, c.note) == ("currency", None, "USD", "from PO")
 

@@ -7,7 +7,7 @@
     {
       "id": "invoice-pdf",
       "status": "completed",
-      "elapsed_ms": 96.47,
+      "elapsed_ms": 266.98,
       "observed_kind": "pdf",
       "observed_pages": 1,
       "checks": {
@@ -19,7 +19,7 @@
     {
       "id": "grocery-image",
       "status": "completed",
-      "elapsed_ms": 2297.23,
+      "elapsed_ms": 5028.39,
       "observed_kind": "jpeg",
       "observed_pages": 1,
       "checks": {
