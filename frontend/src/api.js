@@ -43,6 +43,7 @@ export const api = {
   },
   list: (params) => request(`/api/documents${qs(params)}`),
   detail: (id) => request(`/api/documents/${id}`),
+  remove: (id) => request(`/api/documents/${id}`, { method: "DELETE" }),
   result: (id) => request(`/api/documents/${id}/result`),
   pages: (id, limit = 200) => request(`/api/documents/${id}/pages${qs({ limit })}`),
   correct: (id, body) => request(`/api/documents/${id}/corrections`, json("PATCH", body)),

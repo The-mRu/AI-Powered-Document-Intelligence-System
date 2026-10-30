@@ -35,7 +35,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app import services  # noqa: E402
 from app.config import get_settings  # noqa: E402
-from app.db.models import Correction, Page, ValidationIssue  # noqa: E402
+from app.db.models import Correction, Document, Page, ValidationIssue  # noqa: E402
 from app.db.session import get_db, init_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app import main as main_module  # noqa: E402
@@ -247,6 +247,27 @@ def test_queue_outage_does_not_lose_the_document(client, monkeypatch):
 
 def test_unknown_document_is_404(client):
     assert client.get("/api/documents/nope").status_code == 404
+
+
+def test_delete_document_removes_record_and_file(client, tmp_path):
+    d = upload_one(client)
+    stored = list((tmp_path / "storage").iterdir())
+    assert len(stored) == 1 and stored[0].exists()
+
+    response = client.delete(f"/api/documents/{d['id']}")
+
+    assert response.status_code == 200
+    assert response.json() == {"deleted": True, "document_id": d["id"]}
+    assert not stored[0].exists()
+    assert client.get(f"/api/documents/{d['id']}").status_code == 404
+
+
+def test_delete_processing_document_is_rejected(client):
+    d = upload_one(client)
+    with _test_sessionmaker() as db:
+        db.get(Document, d["id"]).status = "processing"
+        db.commit()
+    assert client.delete(f"/api/documents/{d['id']}").status_code == 409
 
 
 # ------------------------------------------------------------------ duplicates via the database

@@ -165,6 +165,28 @@ def document_pages(doc_id: str, limit: int = Query(20, ge=1, le=200), offset: in
                        "text": p.text, "error": p.error, "duration_ms": p.duration_ms} for p in rows]}
 
 
+# ------------------------------------------------------------------ deletion
+@router.delete("/documents/{doc_id}")
+def delete_document(doc_id: str, db: Session = Depends(get_db)):
+    doc = _get(db, doc_id)
+    if doc.status == "processing":
+        raise HTTPException(409, "Document is currently processing; try again when processing finishes")
+
+    storage_root = Path(get_settings().storage_dir).resolve()
+    file_path = Path(doc.storage_path).resolve()
+    if storage_root not in file_path.parents:
+        raise HTTPException(500, "Document storage path is outside the configured storage directory")
+
+    try:
+        file_path.unlink(missing_ok=True)
+    except OSError as e:
+        raise HTTPException(500, f"Could not remove stored document: {type(e).__name__}") from e
+
+    db.delete(doc)
+    db.commit()
+    return {"deleted": True, "document_id": doc_id}
+
+
 # ------------------------------------------------------------------ manual corrections
 class LineItemIn(BaseModel):
     description: str | None = Field(default=None, max_length=500)

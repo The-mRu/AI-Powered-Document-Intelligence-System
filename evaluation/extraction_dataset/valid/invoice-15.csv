@@ -1,0 +1,16 @@
+Invoice Number;Date;Supplier;Customer;Currency
+INV-2026-0015;2026-06-15;Cedar Ridge Supplies;Pinecrest Services;USD
+
+Description;Quantity;Unit;Unit Price;Line Total;Tax;Discount
+Paper;1;pcs;58.50;58.50;10%;
+Milk;2;boxes;98.50;197.00;10%;
+Cable;1;kg;142.50;142.50;10%;
+
+Subtotal;398.00
+Tax;39.80
+Discount;11.94
+Shipping;
+Other Charges;
+Total;425.86
+Payments Received;
+Balance Due;

@@ -1,0 +1,968 @@
+{
+  "seed": 20261030,
+  "valid_document_count": 15,
+  "expected_failure_count": 4,
+  "documents": [
+    {
+      "filename": "invoice-01.pdf",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-01.pdf",
+      "document_type": "pdf",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0001",
+        "invoice_date": "2026-01-01",
+        "supplier_name": "Northstar Office GmbH",
+        "customer_name": "Atlas Retail Group",
+        "subtotal": "171.25",
+        "tax": "34.25",
+        "discount": "5%",
+        "total": "170.19",
+        "currency": "EUR",
+        "shipping": null,
+        "other_charges": "7.50",
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": true,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "2.5",
+            "unit": "pcs",
+            "unit_price": "68.50",
+            "line_total": "171.25",
+            "tax": "10%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-02.pdf",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-02.pdf",
+      "document_type": "pdf",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0002",
+        "invoice_date": "2026-02-02",
+        "supplier_name": "Blue Harbor Trading",
+        "customer_name": "Summit Works",
+        "subtotal": "1283.50",
+        "tax": "128.35",
+        "discount": null,
+        "total": "1436.85",
+        "currency": "USD",
+        "shipping": "25.00",
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "2.5",
+            "unit": "pcs",
+            "unit_price": "97.50",
+            "line_total": "243.75",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "5",
+            "unit": "boxes",
+            "unit_price": "21.50",
+            "line_total": "107.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Cable",
+            "quantity": "2.5",
+            "unit": "kg",
+            "unit_price": "163.50",
+            "line_total": "408.75",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Gloves",
+            "quantity": "3",
+            "unit": "litres",
+            "unit_price": "174.50",
+            "line_total": "523.50",
+            "tax": "8%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-03.pdf",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-03.pdf",
+      "document_type": "pdf",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0003",
+        "invoice_date": "2026-03-03",
+        "supplier_name": "Cedar Ridge Supplies",
+        "customer_name": "Pinecrest Services",
+        "subtotal": "1274.00",
+        "tax": "127.40",
+        "discount": "38.22",
+        "total": "1363.18",
+        "currency": "USD",
+        "shipping": null,
+        "other_charges": null,
+        "payments_received": "681.59",
+        "balance_due": "681.59",
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "3",
+            "unit": "pcs",
+            "unit_price": "43.50",
+            "line_total": "130.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "3",
+            "unit": "boxes",
+            "unit_price": "85.50",
+            "line_total": "256.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Cable",
+            "quantity": "5",
+            "unit": "kg",
+            "unit_price": "48.50",
+            "line_total": "242.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Gloves",
+            "quantity": "2",
+            "unit": "litres",
+            "unit_price": "53.50",
+            "line_total": "107.00",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Labels",
+            "quantity": "1",
+            "unit": "pcs",
+            "unit_price": "18.50",
+            "line_total": "18.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Soap",
+            "quantity": "3",
+            "unit": "boxes",
+            "unit_price": "48.50",
+            "line_total": "145.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Paper",
+            "quantity": "3",
+            "unit": "kg",
+            "unit_price": "124.50",
+            "line_total": "373.50",
+            "tax": "10%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-04.pdf",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-04.pdf",
+      "document_type": "pdf",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0004",
+        "invoice_date": "2026-04-04",
+        "supplier_name": "Northstar Office GmbH",
+        "customer_name": "Atlas Retail Group",
+        "subtotal": "402.75",
+        "tax": "40.28",
+        "discount": "12.08",
+        "total": "390.67",
+        "currency": "USD",
+        "shipping": null,
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": true,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "2.5",
+            "unit": "pcs",
+            "unit_price": "118.50",
+            "line_total": "296.25",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Milk",
+            "quantity": "3",
+            "unit": "boxes",
+            "unit_price": "35.50",
+            "line_total": "106.50",
+            "tax": "8%",
+            "discount": "5%"
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-05.pdf",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-05.pdf",
+      "document_type": "pdf",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0005",
+        "invoice_date": "2026-05-05",
+        "supplier_name": "Blue Harbor Trading",
+        "customer_name": "Summit Works",
+        "subtotal": "1279.75",
+        "tax": "255.95",
+        "discount": null,
+        "total": "1535.70",
+        "currency": "EUR",
+        "shipping": null,
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "1",
+            "unit": "pcs",
+            "unit_price": "135.50",
+            "line_total": "135.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "3",
+            "unit": "boxes",
+            "unit_price": "112.50",
+            "line_total": "337.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Cable",
+            "quantity": "5",
+            "unit": "kg",
+            "unit_price": "59.50",
+            "line_total": "297.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Gloves",
+            "quantity": "2.5",
+            "unit": "litres",
+            "unit_price": "73.50",
+            "line_total": "183.75",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Labels",
+            "quantity": "3",
+            "unit": "pcs",
+            "unit_price": "108.50",
+            "line_total": "325.50",
+            "tax": "10%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-06.pdf",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-06.pdf",
+      "document_type": "pdf",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0006",
+        "invoice_date": "2026-06-06",
+        "supplier_name": "Cedar Ridge Supplies",
+        "customer_name": "Pinecrest Services",
+        "subtotal": "2068.50",
+        "tax": "206.85",
+        "discount": "5%",
+        "total": "2196.93",
+        "currency": "USD",
+        "shipping": "25.00",
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "2.5",
+            "unit": "pcs",
+            "unit_price": "167.50",
+            "line_total": "418.75",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Milk",
+            "quantity": "2",
+            "unit": "boxes",
+            "unit_price": "174.50",
+            "line_total": "349.00",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Cable",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "13.50",
+            "line_total": "27.00",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Gloves",
+            "quantity": "5",
+            "unit": "litres",
+            "unit_price": "30.50",
+            "line_total": "152.50",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Labels",
+            "quantity": "2",
+            "unit": "pcs",
+            "unit_price": "79.50",
+            "line_total": "159.00",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Soap",
+            "quantity": "5",
+            "unit": "boxes",
+            "unit_price": "157.50",
+            "line_total": "787.50",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Paper",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "45.50",
+            "line_total": "91.00",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Milk",
+            "quantity": "2.5",
+            "unit": "litres",
+            "unit_price": "33.50",
+            "line_total": "83.75",
+            "tax": "8%",
+            "discount": "5%"
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-07.pdf",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-07.pdf",
+      "document_type": "pdf",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0007",
+        "invoice_date": "2026-07-07",
+        "supplier_name": "Northstar Office GmbH",
+        "customer_name": "Atlas Retail Group",
+        "subtotal": "759.00",
+        "tax": "75.90",
+        "discount": "22.77",
+        "total": "743.73",
+        "currency": "USD",
+        "shipping": null,
+        "other_charges": "7.50",
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": true,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "1",
+            "unit": "pcs",
+            "unit_price": "135.50",
+            "line_total": "135.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "2",
+            "unit": "boxes",
+            "unit_price": "30.50",
+            "line_total": "61.00",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Cable",
+            "quantity": "5",
+            "unit": "kg",
+            "unit_price": "112.50",
+            "line_total": "562.50",
+            "tax": "10%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-08.pdf",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-08.pdf",
+      "document_type": "pdf",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0008",
+        "invoice_date": "2026-08-08",
+        "supplier_name": "Blue Harbor Trading",
+        "customer_name": "Summit Works",
+        "subtotal": "1210.50",
+        "tax": "121.05",
+        "discount": null,
+        "total": "1331.55",
+        "currency": null,
+        "shipping": null,
+        "other_charges": null,
+        "payments_received": "665.78",
+        "balance_due": "665.77",
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "5",
+            "unit": "pcs",
+            "unit_price": "162.50",
+            "line_total": "812.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "1",
+            "unit": "boxes",
+            "unit_price": "51.50",
+            "line_total": "51.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Cable",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "35.50",
+            "line_total": "71.00",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Gloves",
+            "quantity": "1",
+            "unit": "litres",
+            "unit_price": "118.50",
+            "line_total": "118.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Labels",
+            "quantity": "3",
+            "unit": "pcs",
+            "unit_price": "30.50",
+            "line_total": "91.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Soap",
+            "quantity": "1",
+            "unit": "boxes",
+            "unit_price": "65.50",
+            "line_total": "65.50",
+            "tax": "8%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-09.jpg",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-09.jpg",
+      "document_type": "image",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0009",
+        "invoice_date": "2026-09-09",
+        "supplier_name": "Cedar Ridge Supplies",
+        "customer_name": "Pinecrest Services",
+        "subtotal": "847.50",
+        "tax": "169.50",
+        "discount": "25.42",
+        "total": "991.58",
+        "currency": "EUR",
+        "shipping": null,
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "5",
+            "unit": "pcs",
+            "unit_price": "169.50",
+            "line_total": "847.50",
+            "tax": "10%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-10.jpg",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-10.jpg",
+      "document_type": "image",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0010",
+        "invoice_date": "2026-01-10",
+        "supplier_name": "Northstar Office GmbH",
+        "customer_name": "Atlas Retail Group",
+        "subtotal": "664.00",
+        "tax": "66.40",
+        "discount": "19.92",
+        "total": "669.08",
+        "currency": "USD",
+        "shipping": "25.00",
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": true,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "2",
+            "unit": "pcs",
+            "unit_price": "92.50",
+            "line_total": "185.00",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Milk",
+            "quantity": "1",
+            "unit": "boxes",
+            "unit_price": "81.50",
+            "line_total": "81.50",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Cable",
+            "quantity": "2.5",
+            "unit": "kg",
+            "unit_price": "77.50",
+            "line_total": "193.75",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Gloves",
+            "quantity": "2.5",
+            "unit": "litres",
+            "unit_price": "81.50",
+            "line_total": "203.75",
+            "tax": "8%",
+            "discount": "5%"
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-11.jpg",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-11.jpg",
+      "document_type": "image",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0011",
+        "invoice_date": "2026-02-11",
+        "supplier_name": "Blue Harbor Trading",
+        "customer_name": "Summit Works",
+        "subtotal": "1850.50",
+        "tax": "185.05",
+        "discount": null,
+        "total": "2035.55",
+        "currency": "USD",
+        "shipping": null,
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "2.5",
+            "unit": "pcs",
+            "unit_price": "23.50",
+            "line_total": "58.75",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "3",
+            "unit": "boxes",
+            "unit_price": "102.50",
+            "line_total": "307.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Cable",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "177.50",
+            "line_total": "355.00",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Gloves",
+            "quantity": "1",
+            "unit": "litres",
+            "unit_price": "22.50",
+            "line_total": "22.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Labels",
+            "quantity": "2.5",
+            "unit": "pcs",
+            "unit_price": "106.50",
+            "line_total": "266.25",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Soap",
+            "quantity": "5",
+            "unit": "boxes",
+            "unit_price": "129.50",
+            "line_total": "647.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Paper",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "96.50",
+            "line_total": "193.00",
+            "tax": "10%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-12.jpg",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-12.jpg",
+      "document_type": "image",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0012",
+        "invoice_date": "2026-03-12",
+        "supplier_name": "Cedar Ridge Supplies",
+        "customer_name": "Pinecrest Services",
+        "subtotal": "422.00",
+        "tax": "42.20",
+        "discount": "12.66",
+        "total": "451.54",
+        "currency": "USD",
+        "shipping": null,
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "1",
+            "unit": "pcs",
+            "unit_price": "108.50",
+            "line_total": "108.50",
+            "tax": "8%",
+            "discount": "5%"
+          },
+          {
+            "description": "Milk",
+            "quantity": "3",
+            "unit": "boxes",
+            "unit_price": "104.50",
+            "line_total": "313.50",
+            "tax": "8%",
+            "discount": "5%"
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-13.xlsx",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-13.xlsx",
+      "document_type": "spreadsheet",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0013",
+        "invoice_date": "2026-04-13",
+        "supplier_name": "Northstar Office GmbH",
+        "customer_name": "Atlas Retail Group",
+        "subtotal": "1785.50",
+        "tax": "357.10",
+        "discount": "53.56",
+        "total": "1739.44",
+        "currency": "EUR",
+        "shipping": null,
+        "other_charges": "7.50",
+        "payments_received": "869.72",
+        "balance_due": "869.72",
+        "tax_inclusive": true,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "5",
+            "unit": "pcs",
+            "unit_price": "34.50",
+            "line_total": "172.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "3",
+            "unit": "boxes",
+            "unit_price": "93.50",
+            "line_total": "280.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Cable",
+            "quantity": "2",
+            "unit": "kg",
+            "unit_price": "61.50",
+            "line_total": "123.00",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Gloves",
+            "quantity": "5",
+            "unit": "litres",
+            "unit_price": "170.50",
+            "line_total": "852.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Labels",
+            "quantity": "2",
+            "unit": "pcs",
+            "unit_price": "178.50",
+            "line_total": "357.00",
+            "tax": "10%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-14.xlsx",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-14.xlsx",
+      "document_type": "spreadsheet",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0014",
+        "invoice_date": "2026-05-14",
+        "supplier_name": "Blue Harbor Trading",
+        "customer_name": "Summit Works",
+        "subtotal": "2013.25",
+        "tax": "201.32",
+        "discount": null,
+        "total": "2239.57",
+        "currency": "USD",
+        "shipping": "25.00",
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "1",
+            "unit": "pcs",
+            "unit_price": "62.50",
+            "line_total": "62.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "1",
+            "unit": "boxes",
+            "unit_price": "86.50",
+            "line_total": "86.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Cable",
+            "quantity": "3",
+            "unit": "kg",
+            "unit_price": "117.50",
+            "line_total": "352.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Gloves",
+            "quantity": "2.5",
+            "unit": "litres",
+            "unit_price": "56.50",
+            "line_total": "141.25",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Labels",
+            "quantity": "3",
+            "unit": "pcs",
+            "unit_price": "105.50",
+            "line_total": "316.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Soap",
+            "quantity": "2",
+            "unit": "boxes",
+            "unit_price": "138.50",
+            "line_total": "277.00",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Paper",
+            "quantity": "3",
+            "unit": "kg",
+            "unit_price": "179.50",
+            "line_total": "538.50",
+            "tax": "8%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "3",
+            "unit": "litres",
+            "unit_price": "79.50",
+            "line_total": "238.50",
+            "tax": "8%",
+            "discount": null
+          }
+        ]
+      }
+    },
+    {
+      "filename": "invoice-15.csv",
+      "path": "evaluation\\extraction_dataset\\valid\\invoice-15.csv",
+      "document_type": "spreadsheet",
+      "ground_truth": {
+        "invoice_number": "INV-2026-0015",
+        "invoice_date": "2026-06-15",
+        "supplier_name": "Cedar Ridge Supplies",
+        "customer_name": "Pinecrest Services",
+        "subtotal": "398.00",
+        "tax": "39.80",
+        "discount": "11.94",
+        "total": "425.86",
+        "currency": "USD",
+        "shipping": null,
+        "other_charges": null,
+        "payments_received": null,
+        "balance_due": null,
+        "tax_inclusive": false,
+        "line_items": [
+          {
+            "description": "Paper",
+            "quantity": "1",
+            "unit": "pcs",
+            "unit_price": "58.50",
+            "line_total": "58.50",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Milk",
+            "quantity": "2",
+            "unit": "boxes",
+            "unit_price": "98.50",
+            "line_total": "197.00",
+            "tax": "10%",
+            "discount": null
+          },
+          {
+            "description": "Cable",
+            "quantity": "1",
+            "unit": "kg",
+            "unit_price": "142.50",
+            "line_total": "142.50",
+            "tax": "10%",
+            "discount": null
+          }
+        ]
+      }
+    }
+  ],
+  "expected_failures": [
+    {
+      "filename": "corrupted.pdf",
+      "path": "evaluation\\extraction_dataset\\expected_failures\\corrupted.pdf",
+      "document_type": "expected_failure"
+    },
+    {
+      "filename": "empty.pdf",
+      "path": "evaluation\\extraction_dataset\\expected_failures\\empty.pdf",
+      "document_type": "expected_failure"
+    },
+    {
+      "filename": "password-protected.pdf",
+      "path": "evaluation\\extraction_dataset\\expected_failures\\password-protected.pdf",
+      "document_type": "expected_failure"
+    },
+    {
+      "filename": "executable-renamed.pdf",
+      "path": "evaluation\\extraction_dataset\\expected_failures\\executable-renamed.pdf",
+      "document_type": "expected_failure"
+    }
+  ]
+}

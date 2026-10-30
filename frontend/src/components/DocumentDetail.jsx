@@ -7,13 +7,14 @@ const ITEM_KEYS = ["description", "quantity", "unit", "unit_price", "line_total"
 const blankToNull = (v) => (v === "" || v === undefined ? null : v);
 const normItem = (li) => Object.fromEntries(ITEM_KEYS.map((k) => [k, blankToNull(li[k] ?? null)]));
 
-export default function DocumentDetail({ id, onChanged }) {
+export default function DocumentDetail({ id, onChanged, onDeleted }) {
   const [doc, setDoc] = useState(null);
   const [result, setResult] = useState(null);
   const [pages, setPages] = useState([]);
   const [err, setErr] = useState(null);
   const [edit, setEdit] = useState(null); // null = read-only; object = editing draft
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     const d = await api.detail(id);
@@ -105,6 +106,21 @@ export default function DocumentDetail({ id, onChanged }) {
     }
   }
 
+  async function removeDocument() {
+    if (!deleting) {
+      setDeleting(true);
+      return;
+    }
+    setErr(null);
+    try {
+      await api.remove(id);
+      onDeleted?.();
+    } catch (e) {
+      setDeleting(false);
+      setErr(e.message);
+    }
+  }
+
   const issues = result?.validation?.issues ?? [];
   const order = { error: 0, warning: 1 };
   const problems = issues.filter((i) => i.severity !== "info").sort((a, b) => order[a.severity] - order[b.severity]);
@@ -118,9 +134,15 @@ export default function DocumentDetail({ id, onChanged }) {
   return (
     <section className="card">
       <div className="row between">
-        <h2 className="ellipsis">{doc.filename}</h2>
-        <Badge kind={doc.status}>{doc.status.replace("_", " ")}</Badge>
+        <div className="document-heading">
+          <h2 className="ellipsis">{doc.filename}</h2>
+          <Badge kind={doc.status}>{doc.status.replace("_", " ")}</Badge>
+        </div>
+        <button className={`delete-button ${deleting ? "confirm" : ""}`} onClick={removeDocument} disabled={doc.status === "processing"}>
+          {deleting ? "Confirm delete" : "Delete document"}
+        </button>
       </div>
+      {deleting && <p className="delete-hint">This removes the stored file and all extracted data. Click again to confirm.</p>}
       <p className="muted">
         {doc.kind?.toUpperCase()} · {doc.progress?.page_count ?? "?"} page(s) · attempt {doc.attempts}
       </p>
