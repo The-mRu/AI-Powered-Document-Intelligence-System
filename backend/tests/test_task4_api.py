@@ -399,10 +399,14 @@ def test_stats_report_success_and_failure_rates(client):
     assert s["processing_seconds"]["p50"] is not None
 
 
-def test_api_key_is_enforced_when_configured(client, monkeypatch):
+def test_public_reads_and_protected_writes_when_configured(client, monkeypatch):
     monkeypatch.setenv("API_KEY", "s3cret")
     get_settings.cache_clear()
-    assert client.get("/api/documents").status_code == 401
-    assert client.get("/api/documents", headers={"X-API-Key": "wrong"}).status_code == 401
-    assert client.get("/api/documents", headers={"X-API-Key": "s3cret"}).status_code == 200
+    assert client.get("/api/documents").status_code == 200
+    assert client.get("/api/stats").status_code == 200
+    assert client.post("/api/documents", files=[("files", ("invoice.pdf", io.BytesIO(make_pdf()), "application/pdf"))]).status_code == 401
+    assert client.post("/api/documents", files=[("files", ("invoice.pdf", io.BytesIO(make_pdf()), "application/pdf"))],
+                       headers={"X-API-Key": "wrong"}).status_code == 401
+    assert client.post("/api/documents", files=[("files", ("invoice.pdf", io.BytesIO(make_pdf()), "application/pdf"))],
+                       headers={"X-API-Key": "s3cret"}).status_code == 202
     assert client.get("/health").status_code == 200  # health stays open for load balancers

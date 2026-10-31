@@ -28,8 +28,10 @@ async def lifespan(_: FastAPI):
     yield
 
 
+settings = get_settings()
 app = FastAPI(title="Document Intelligence API", version="1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in get_settings().cors_origins.split(",") if o.strip()],
+app.add_middleware(CORSMiddleware,
+                   allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
                    allow_methods=["GET", "POST", "PATCH", "DELETE"], allow_headers=["*"])
 app.include_router(router)
 

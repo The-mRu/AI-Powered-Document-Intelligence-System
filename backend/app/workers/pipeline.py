@@ -20,6 +20,7 @@ from app.db.session import get_sessionmaker
 from app.extraction.extractor import ExtractionError, build_source_text, extract_from_document
 from app.pipelines import ProcessingError, process_file
 from app.pipelines.detect import detect_kind
+from app.storage import materialize
 
 log = logging.getLogger(__name__)
 
@@ -68,12 +69,19 @@ def run_pipeline(doc_id: str) -> str:
         doc = db.get(Document, doc_id)
         if doc is None:
             return "missing"
+        with materialize(doc.storage_path, doc.filename) as local_path:
+            return _run_pipeline(db, doc, str(local_path))
+
+
+def _run_pipeline(db: Session, doc: Document, local_path: str) -> str:
+    doc_id = doc.id
+    if doc is not None:
         _reset(db, doc)
         doc.status, doc.started_at, doc.finished_at = "processing", utcnow(), None
         doc.error_code = doc.error_message = None
         doc.attempts += 1
         doc.pages_done = 0
-        doc.page_count = estimate_pages(doc.storage_path)
+        doc.page_count = estimate_pages(local_path)
         db.commit()
 
         # ---- stage 1: read the file (text layer / OCR / spreadsheet) ----
@@ -86,7 +94,7 @@ def run_pipeline(doc_id: str) -> str:
             db.commit()  # commit per page: progress is visible while a big file is processing
 
         try:
-            result = process_file(doc.storage_path, original_name=doc.filename, on_page=on_page)
+            result = process_file(local_path, original_name=doc.filename, on_page=on_page)
         except ProcessingError as e:
             return _fail(db, doc, e.code, str(e), "processing", t0)
         except Exception as e:  # unexpected bug: record it, never leave the job hanging

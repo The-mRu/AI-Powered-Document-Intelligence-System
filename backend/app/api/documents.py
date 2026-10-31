@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -18,11 +18,13 @@ from app.db.session import get_db
 from app.extraction.schema import MONEY_FIELDS, SCALAR_FIELDS
 from app.extraction.verify import to_decimal
 from app.search.search import Filters, keyword_search, semantic_search
+from app.storage import delete_file, upload_file
+from app.workers.pipeline import run_pipeline
 from app.workers.tasks import process_document
 
 from .deps import require_api_key
 
-router = APIRouter(prefix="/api", dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/api")
 ALLOWED_EXT = {".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".xlsx", ".xls", ".csv"}
 READY = {"completed", "needs_review"}
 
@@ -41,7 +43,12 @@ def _get(db: Session, doc_id: str) -> Document:
     return doc
 
 
-def _enqueue(db: Session, doc: Document) -> None:
+def _enqueue(db: Session, doc: Document, background_tasks: BackgroundTasks | None = None) -> None:
+    if get_settings().processing_mode == "background":
+        if background_tasks is None:
+            raise RuntimeError("Background processing requires FastAPI BackgroundTasks")
+        background_tasks.add_task(run_pipeline, doc.id)
+        return
     try:
         process_document.delay(doc.id)
     except Exception as e:  # broker down: keep the document, mark retryable instead of losing it
@@ -69,8 +76,9 @@ def _summary(d: Document, e: Extraction | None) -> dict:
 
 
 # ------------------------------------------------------------------ upload
-@router.post("/documents", status_code=202)
-def upload_documents(files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+@router.post("/documents", status_code=202, dependencies=[Depends(require_api_key)])
+def upload_documents(files: list[UploadFile] = File(...), background_tasks: BackgroundTasks = None,
+                     db: Session = Depends(get_db)):
     s = get_settings()
     if not files:
         raise HTTPException(400, "No files provided")
@@ -102,11 +110,20 @@ def upload_documents(files: list[UploadFile] = File(...), db: Session = Depends(
             results.append({"filename": name, "status": "rejected",
                             "error": "file_too_large" if too_big else "empty_file"})
             continue
+        if s.storage_backend == "supabase":
+            object_key = f"{doc_id}{ext}"
+            try:
+                upload_file(dest, object_key, up.content_type)
+            finally:
+                dest.unlink(missing_ok=True)
+            storage_path = object_key
+        else:
+            storage_path = str(dest)
         doc = Document(id=doc_id, filename=name, file_hash=sha.hexdigest(), size_bytes=size,
-                       storage_path=str(dest), status="queued", warnings=[])
+                       storage_path=storage_path, status="queued", warnings=[])
         db.add(doc)
         db.commit()
-        _enqueue(db, doc)
+        _enqueue(db, doc, background_tasks)
         db.refresh(doc)
         results.append({"id": doc.id, "filename": name, "status": doc.status, "error": doc.error_code})
     return {"documents": results}
@@ -166,21 +183,24 @@ def document_pages(doc_id: str, limit: int = Query(20, ge=1, le=200), offset: in
 
 
 # ------------------------------------------------------------------ deletion
-@router.delete("/documents/{doc_id}")
+@router.delete("/documents/{doc_id}", dependencies=[Depends(require_api_key)])
 def delete_document(doc_id: str, db: Session = Depends(get_db)):
     doc = _get(db, doc_id)
     if doc.status == "processing":
         raise HTTPException(409, "Document is currently processing; try again when processing finishes")
 
-    storage_root = Path(get_settings().storage_dir).resolve()
-    file_path = Path(doc.storage_path).resolve()
-    if storage_root not in file_path.parents:
-        raise HTTPException(500, "Document storage path is outside the configured storage directory")
-
-    try:
-        file_path.unlink(missing_ok=True)
-    except OSError as e:
-        raise HTTPException(500, f"Could not remove stored document: {type(e).__name__}") from e
+    settings = get_settings()
+    if settings.storage_backend == "supabase":
+        delete_file(doc.storage_path)
+    else:
+        storage_root = Path(settings.storage_dir).resolve()
+        file_path = Path(doc.storage_path).resolve()
+        if storage_root not in file_path.parents:
+            raise HTTPException(500, "Document storage path is outside the configured storage directory")
+        try:
+            file_path.unlink(missing_ok=True)
+        except OSError as e:
+            raise HTTPException(500, f"Could not remove stored document: {type(e).__name__}") from e
 
     db.delete(doc)
     db.commit()
@@ -226,7 +246,7 @@ def _clean_field(name: str, value: str | None) -> str | None:
     return v[:255]
 
 
-@router.patch("/documents/{doc_id}/corrections")
+@router.patch("/documents/{doc_id}/corrections", dependencies=[Depends(require_api_key)])
 def correct_document(doc_id: str, body: CorrectionIn, db: Session = Depends(get_db)):
     doc = _get(db, doc_id)
     ext = doc.extraction
@@ -269,7 +289,7 @@ def correct_document(doc_id: str, body: CorrectionIn, db: Session = Depends(get_
     return document_result(doc_id, db)
 
 
-@router.post("/documents/{doc_id}/approve")
+@router.post("/documents/{doc_id}/approve", dependencies=[Depends(require_api_key)])
 def approve_document(doc_id: str, db: Session = Depends(get_db)):
     """A human reviewer signs off a flagged document (e.g. a missing currency that is genuinely absent)."""
     doc = _get(db, doc_id)
@@ -282,31 +302,33 @@ def approve_document(doc_id: str, db: Session = Depends(get_db)):
 
 
 # ------------------------------------------------------------------ reprocessing
-def _requeue(db: Session, doc: Document) -> None:
+def _requeue(db: Session, doc: Document, background_tasks: BackgroundTasks | None = None) -> None:
     doc.status, doc.error_code, doc.error_message, doc.finished_at = "queued", None, None, None
     db.commit()
-    _enqueue(db, doc)
+    _enqueue(db, doc, background_tasks)
 
 
-@router.post("/documents/{doc_id}/reprocess", status_code=202)
-def reprocess_document(doc_id: str, force: bool = False, db: Session = Depends(get_db)):
+@router.post("/documents/{doc_id}/reprocess", status_code=202, dependencies=[Depends(require_api_key)])
+def reprocess_document(doc_id: str, force: bool = False, background_tasks: BackgroundTasks = None,
+                       db: Session = Depends(get_db)):
     doc = _get(db, doc_id)
     if doc.status in ("queued", "processing"):
         raise HTTPException(409, "Document is already being processed")
     if doc.status != "failed" and not force:
         raise HTTPException(409, "Only failed documents are reprocessed by default; pass force=true to redo "
                                  "a finished one (this discards its AI result and corrections)")
-    _requeue(db, doc)
+    _requeue(db, doc, background_tasks)
     db.refresh(doc)
     return _summary(doc, doc.extraction)
 
 
-@router.post("/documents/reprocess-failed", status_code=202)
-def reprocess_failed(limit: int = Query(100, ge=1, le=500), db: Session = Depends(get_db)):
+@router.post("/documents/reprocess-failed", status_code=202, dependencies=[Depends(require_api_key)])
+def reprocess_failed(limit: int = Query(100, ge=1, le=500), background_tasks: BackgroundTasks = None,
+                     db: Session = Depends(get_db)):
     docs = db.execute(select(Document).where(Document.status == "failed").order_by(Document.created_at)
                       .limit(limit)).scalars().all()
     for d in docs:
-        _requeue(db, d)
+        _requeue(db, d, background_tasks)
     return {"requeued": len(docs), "ids": [d.id for d in docs]}
 
 

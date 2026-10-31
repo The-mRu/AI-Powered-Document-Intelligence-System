@@ -1,17 +1,23 @@
 // All HTTP calls live here, so components never build URLs or handle headers themselves.
-const BASE = import.meta.env.VITE_API_BASE ?? ""; // "" = same origin (nginx or the Vite proxy)
+export const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/+$/, "");
 
 let apiKey = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("apiKey") || "" : "";
 export const getApiKey = () => apiKey;
 export function setApiKey(key) {
-  apiKey = key;
-  sessionStorage.setItem("apiKey", key);
+  apiKey = key.trim();
+  if (typeof sessionStorage !== "undefined") {
+    if (apiKey) sessionStorage.setItem("apiKey", apiKey);
+    else sessionStorage.removeItem("apiKey");
+  }
+}
+export function clearApiKey() {
+  setApiKey("");
 }
 
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (apiKey) headers["X-API-Key"] = apiKey;
-  const res = await fetch(BASE + path, { ...options, headers });
+  const res = await fetch(API_BASE + path, { ...options, headers });
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -20,7 +26,10 @@ async function request(path, options = {}) {
     } catch {
       /* keep statusText */
     }
-    const err = new Error(detail || `HTTP ${res.status}`);
+    const message = res.status === 401
+      ? "Owner API key is missing or invalid. Enter a valid key to perform this action."
+      : (detail || `HTTP ${res.status}`);
+    const err = new Error(message);
     err.status = res.status;
     throw err;
   }
