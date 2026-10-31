@@ -15,6 +15,9 @@ export default function DocumentDetail({ id, onChanged, onDeleted }) {
   const [edit, setEdit] = useState(null); // null = read-only; object = editing draft
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [originalLoading, setOriginalLoading] = useState(false);
+  const [originalError, setOriginalError] = useState(null);
 
   const load = useCallback(async () => {
     const d = await api.detail(id);
@@ -35,6 +38,8 @@ export default function DocumentDetail({ id, onChanged, onDeleted }) {
     setResult(null);
     setPages([]);
     setEdit(null);
+    setShowOriginal(false);
+    setOriginalError(null);
     setErr(null);
     let stop = false;
     let timer;
@@ -57,6 +62,11 @@ export default function DocumentDetail({ id, onChanged, onDeleted }) {
   if (!doc) return <section className="card"><p className="muted">Loading…</p></section>;
 
   const eff = result?.effective;
+  const originalUrl = api.originalUrl(id);
+  const originalDownloadUrl = api.originalUrl(id, true);
+  const extension = doc.filename?.split(".").pop()?.toLowerCase();
+  const isPdf = extension === "pdf";
+  const isImage = ["jpg", "jpeg", "png", "tif", "tiff"].includes(extension);
 
   function startEdit() {
     setErr(null);
@@ -146,6 +156,47 @@ export default function DocumentDetail({ id, onChanged, onDeleted }) {
       <p className="muted">
         {doc.kind?.toUpperCase()} · {doc.progress?.page_count ?? "?"} page(s) · attempt {doc.attempts}
       </p>
+      <div className="detail-tabs" role="tablist" aria-label="Document views">
+        <button className={!showOriginal ? "active" : "ghost"} role="tab" aria-selected={!showOriginal}
+          onClick={() => setShowOriginal(false)}>Extraction</button>
+        <button className={showOriginal ? "active" : "ghost"} role="tab" aria-selected={showOriginal}
+          onClick={() => { setShowOriginal(true); setOriginalLoading(true); setOriginalError(null); }}>Original file</button>
+      </div>
+
+      {showOriginal && (
+        <section className="original-viewer" aria-label="Original document">
+          <div className="row between">
+            <div>
+              <h3>Original file</h3>
+              <p className="muted">Exact uploaded file · {doc.filename}</p>
+            </div>
+            <a className="button-link" href={originalDownloadUrl} download={doc.filename}>Download original</a>
+          </div>
+          {originalError && <p className="error">{originalError}</p>}
+          {originalLoading && <p className="muted">Loading original file…</p>}
+          {isPdf && (
+            <iframe
+              className="original-pdf"
+              src={originalUrl}
+              title={`Original ${doc.filename}`}
+              onLoad={() => setOriginalLoading(false)}
+              onError={() => { setOriginalLoading(false); setOriginalError("The original file is unavailable."); }}
+            />
+          )}
+          {isImage && (
+            <img
+              className="original-image"
+              src={originalUrl}
+              alt={`Original ${doc.filename}`}
+              onLoad={() => setOriginalLoading(false)}
+              onError={() => { setOriginalLoading(false); setOriginalError("The original file is unavailable."); }}
+            />
+          )}
+          {!isPdf && !isImage && (
+            <p className="muted">Preview is unavailable for this file type. Use Download original.</p>
+          )}
+        </section>
+      )}
 
       {ACTIVE.includes(doc.status) && (
         <div className="bar" role="progressbar" aria-valuenow={doc.progress?.percent ?? 0}>
@@ -163,7 +214,7 @@ export default function DocumentDetail({ id, onChanged, onDeleted }) {
         </div>
       )}
 
-      {result && (
+      {!showOriginal && result && (
         <>
           <div className={`callout ${problems.length ? "warnbox" : "okbox"}`}>
             {problems.length ? (
@@ -308,7 +359,7 @@ export default function DocumentDetail({ id, onChanged, onDeleted }) {
         </>
       )}
 
-      {pages.length > 0 && (
+      {!showOriginal && pages.length > 0 && (
         <details>
           <summary>Extracted text ({pages.length} page{pages.length > 1 ? "s" : ""} shown)</summary>
           {pages.map((p) => (
@@ -324,7 +375,7 @@ export default function DocumentDetail({ id, onChanged, onDeleted }) {
         </details>
       )}
 
-      {doc.history?.length > 0 && (
+      {!showOriginal && doc.history?.length > 0 && (
         <details>
           <summary>Processing history</summary>
           <table className="grid">

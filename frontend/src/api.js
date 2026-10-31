@@ -1,5 +1,7 @@
 // All HTTP calls live here, so components never build URLs or handle headers themselves.
 export const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/+$/, "");
+export const originalUrl = (id, download = false) =>
+  `${API_BASE}/api/documents/${encodeURIComponent(id)}/original${download ? "?download=true" : ""}`;
 
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -38,6 +40,7 @@ export const api = {
   remove: (id) => request(`/api/documents/${id}`, { method: "DELETE" }),
   result: (id) => request(`/api/documents/${id}/result`),
   pages: (id, limit = 200) => request(`/api/documents/${id}/pages${qs({ limit })}`),
+  originalUrl,
   correct: (id, body) => request(`/api/documents/${id}/corrections`, json("PATCH", body)),
   approve: (id) => request(`/api/documents/${id}/approve`, { method: "POST" }),
   reprocess: (id, force = false) => request(`/api/documents/${id}/reprocess${qs({ force: force || undefined })}`, { method: "POST" }),

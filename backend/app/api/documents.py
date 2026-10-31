@@ -1,11 +1,15 @@
 import hashlib
+import mimetypes
 import os
 import re
+import tempfile
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -18,7 +22,7 @@ from app.db.session import get_db
 from app.extraction.schema import MONEY_FIELDS, SCALAR_FIELDS
 from app.extraction.verify import to_decimal
 from app.search.search import Filters, keyword_search, semantic_search
-from app.storage import delete_file, upload_file
+from app.storage import delete_file, download_file, upload_file
 from app.workers.pipeline import run_pipeline
 from app.workers.tasks import process_document
 
@@ -30,7 +34,7 @@ READY = {"completed", "needs_review"}
 # ------------------------------------------------------------------ helpers
 def _safe_name(raw: str | None) -> str:
     name = os.path.basename((raw or "").replace("\\", "/"))
-    name = re.sub(r"[\x00-\x1f]", "", name).strip()[:200]
+    name = re.sub(r"[\x00-\x1f\"]", "", name).strip()[:200]
     return name or "unnamed"
 
 
@@ -178,6 +182,43 @@ def document_pages(doc_id: str, limit: int = Query(20, ge=1, le=200), offset: in
                       .limit(limit).offset(offset)).scalars().all()
     return {"items": [{"page_no": p.page_no, "label": p.label, "method": p.method, "confidence": p.confidence,
                        "text": p.text, "error": p.error, "duration_ms": p.duration_ms} for p in rows]}
+
+
+# ------------------------------------------------------------------ original file
+@router.get("/documents/{doc_id}/original")
+def original_document(doc_id: str, download: bool = False, db: Session = Depends(get_db)):
+    doc = _get(db, doc_id)
+    filename = _safe_name(doc.filename)
+    media_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    disposition = "attachment" if download else "inline"
+    content_disposition = f'{disposition}; filename="{filename}"'
+
+    settings = get_settings()
+    cleanup_path = None
+    if settings.storage_backend == "supabase":
+        suffix = Path(filename).suffix
+        fd, temp_name = tempfile.mkstemp(prefix="docintel-original-", suffix=suffix)
+        os.close(fd)
+        cleanup_path = Path(temp_name)
+        try:
+            download_file(doc.storage_path, cleanup_path)
+        except Exception as e:
+            cleanup_path.unlink(missing_ok=True)
+            if getattr(e, "response", None) is not None and e.response.status_code == 404:
+                raise HTTPException(404, "Original file is unavailable") from e
+            raise HTTPException(502, f"Could not retrieve original file: {type(e).__name__}") from e
+        path = cleanup_path
+    else:
+        storage_root = Path(settings.storage_dir).resolve()
+        path = Path(doc.storage_path).resolve()
+        if storage_root not in path.parents or not path.is_file():
+            raise HTTPException(404, "Original file is unavailable")
+
+    response = FileResponse(path, media_type=media_type, filename=None,
+                            headers={"Content-Disposition": content_disposition})
+    if cleanup_path is not None:
+        response.background = BackgroundTask(cleanup_path.unlink, missing_ok=True)
+    return response
 
 
 # ------------------------------------------------------------------ deletion

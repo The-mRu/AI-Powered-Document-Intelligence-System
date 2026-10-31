@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/api.js", () => ({
   api: { upload: vi.fn(), list: vi.fn(), detail: vi.fn(), result: vi.fn(), pages: vi.fn(), correct: vi.fn(),
-         approve: vi.fn(), reprocess: vi.fn(), reprocessFailed: vi.fn(), search: vi.fn(), stats: vi.fn() },
+         approve: vi.fn(), reprocess: vi.fn(), reprocessFailed: vi.fn(), search: vi.fn(), stats: vi.fn(),
+         originalUrl: vi.fn((id, download) => `/api/documents/${id}/original${download ? "?download=true" : ""}`) },
 }));
 import { api } from "../src/api.js";
 import DocumentDetail from "../src/components/DocumentDetail.jsx";
@@ -76,6 +77,16 @@ describe("DocumentList", () => {
 });
 
 describe("DocumentDetail", () => {
+  it("shows the exact original file viewer and download link", async () => {
+    render(<DocumentDetail id="d1" onChanged={() => {}} />);
+    await screen.findByText("Original file");
+    fireEvent.click(screen.getByRole("tab", { name: "Original file" }));
+    expect(screen.getByTitle("Original inv.pdf")).toHaveAttribute("src", "/api/documents/d1/original");
+    expect(screen.getByRole("link", { name: "Download original" })).toHaveAttribute(
+      "href", "/api/documents/d1/original?download=true"
+    );
+  });
+
   it("shows validation problems first and extracted values", async () => {
     render(<DocumentDetail id="d1" onChanged={() => {}} />);
     expect(await screen.findByText("Field 'currency' is missing")).toBeInTheDocument();

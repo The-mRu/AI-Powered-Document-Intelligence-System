@@ -2,6 +2,7 @@
 `<db>_test` database, so they never touch real data. Skipped automatically when DATABASE_URL is unset
 or unreachable (e.g. plain `docker run ... pytest`); run them with `docker compose run --rm api pytest`."""
 import os
+from pathlib import Path
 
 import pytest
 
@@ -124,6 +125,37 @@ def rules(client, doc_id):
 # ------------------------------------------------------------------ basics
 def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
+
+
+def test_original_file_returns_exact_bytes_and_mime_type(client):
+    source = make_pdf()
+    document = upload_one(client, "invoice.pdf", source)
+
+    response = client.get(f"/api/documents/{document['id']}/original")
+
+    assert response.status_code == 200
+    assert response.content == source
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"] == 'inline; filename="invoice.pdf"'
+
+    download = client.get(f"/api/documents/{document['id']}/original?download=true")
+    assert download.status_code == 200
+    assert download.headers["content-disposition"] == 'attachment; filename="invoice.pdf"'
+
+
+def test_original_file_returns_not_found_when_storage_is_missing(client):
+    document = upload_one(client, "invoice.pdf")
+    stored = _test_sessionmaker()
+    try:
+        row = stored.get(Document, document["id"])
+        Path(row.storage_path).unlink()
+    finally:
+        stored.close()
+
+    response = client.get(f"/api/documents/{document['id']}/original")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Original file is unavailable"
 
 
 def test_test_database_configuration_is_explicit():
