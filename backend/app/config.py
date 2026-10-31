@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     supabase_storage_bucket: str = "documents"
     max_upload_mb: int = 500
     max_files_per_request: int = 20
-    api_key: str | None = None  # set in production to protect write operations
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
     openai_api_key: str | None = Field(default=None, repr=False)
     openai_model: str = "gpt-4o-mini"
@@ -40,8 +39,6 @@ class Settings(BaseSettings):
                 raise ValueError("REDIS_URL must be set when ENVIRONMENT=production")
             if not self.openai_api_key:
                 raise ValueError("OPENAI_API_KEY must be set when ENVIRONMENT=production")
-            if not self.api_key:
-                raise ValueError("API_KEY must be set when ENVIRONMENT=production")
             if self.storage_backend == "supabase" and (
                 not self.supabase_url or not self.supabase_service_role_key
             ):

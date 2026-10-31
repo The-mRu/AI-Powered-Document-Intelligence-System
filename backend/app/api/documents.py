@@ -22,8 +22,6 @@ from app.storage import delete_file, upload_file
 from app.workers.pipeline import run_pipeline
 from app.workers.tasks import process_document
 
-from .deps import require_api_key
-
 router = APIRouter(prefix="/api")
 ALLOWED_EXT = {".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".xlsx", ".xls", ".csv"}
 READY = {"completed", "needs_review"}
@@ -76,7 +74,7 @@ def _summary(d: Document, e: Extraction | None) -> dict:
 
 
 # ------------------------------------------------------------------ upload
-@router.post("/documents", status_code=202, dependencies=[Depends(require_api_key)])
+@router.post("/documents", status_code=202)
 def upload_documents(files: list[UploadFile] = File(...), background_tasks: BackgroundTasks = None,
                      db: Session = Depends(get_db)):
     s = get_settings()
@@ -183,7 +181,7 @@ def document_pages(doc_id: str, limit: int = Query(20, ge=1, le=200), offset: in
 
 
 # ------------------------------------------------------------------ deletion
-@router.delete("/documents/{doc_id}", dependencies=[Depends(require_api_key)])
+@router.delete("/documents/{doc_id}")
 def delete_document(doc_id: str, db: Session = Depends(get_db)):
     doc = _get(db, doc_id)
     if doc.status == "processing":
@@ -246,7 +244,7 @@ def _clean_field(name: str, value: str | None) -> str | None:
     return v[:255]
 
 
-@router.patch("/documents/{doc_id}/corrections", dependencies=[Depends(require_api_key)])
+@router.patch("/documents/{doc_id}/corrections")
 def correct_document(doc_id: str, body: CorrectionIn, db: Session = Depends(get_db)):
     doc = _get(db, doc_id)
     ext = doc.extraction
@@ -289,7 +287,7 @@ def correct_document(doc_id: str, body: CorrectionIn, db: Session = Depends(get_
     return document_result(doc_id, db)
 
 
-@router.post("/documents/{doc_id}/approve", dependencies=[Depends(require_api_key)])
+@router.post("/documents/{doc_id}/approve")
 def approve_document(doc_id: str, db: Session = Depends(get_db)):
     """A human reviewer signs off a flagged document (e.g. a missing currency that is genuinely absent)."""
     doc = _get(db, doc_id)
@@ -308,7 +306,7 @@ def _requeue(db: Session, doc: Document, background_tasks: BackgroundTasks | Non
     _enqueue(db, doc, background_tasks)
 
 
-@router.post("/documents/{doc_id}/reprocess", status_code=202, dependencies=[Depends(require_api_key)])
+@router.post("/documents/{doc_id}/reprocess", status_code=202)
 def reprocess_document(doc_id: str, force: bool = False, background_tasks: BackgroundTasks = None,
                        db: Session = Depends(get_db)):
     doc = _get(db, doc_id)
@@ -322,7 +320,7 @@ def reprocess_document(doc_id: str, force: bool = False, background_tasks: Backg
     return _summary(doc, doc.extraction)
 
 
-@router.post("/documents/reprocess-failed", status_code=202, dependencies=[Depends(require_api_key)])
+@router.post("/documents/reprocess-failed", status_code=202)
 def reprocess_failed(limit: int = Query(100, ge=1, le=500), background_tasks: BackgroundTasks = None,
                      db: Session = Depends(get_db)):
     docs = db.execute(select(Document).where(Document.status == "failed").order_by(Document.created_at)

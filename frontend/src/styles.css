@@ -44,32 +44,6 @@ header {
   border-bottom: 1px solid var(--line);
 }
 
-.owner-key {
-  display: flex;
-  min-width: 220px;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.owner-key .row {
-  margin: 0;
-  flex-wrap: nowrap;
-}
-
-.owner-key input { width: 150px; }
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 .brand {
   display: flex;
   align-items: center;
@@ -398,7 +372,6 @@ summary { color: var(--brand-dark); cursor: pointer; font-weight: 650; }
 @media (max-width: 960px) {
   header { padding: 14px 24px; }
   .brand { min-width: 0; }
-  .owner-key { margin-left: auto; }
   .stats { width: 100%; margin-left: 45px; }
   main { grid-template-columns: 1fr; }
 }

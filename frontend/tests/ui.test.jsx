@@ -4,8 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../src/api.js", () => ({
   api: { upload: vi.fn(), list: vi.fn(), detail: vi.fn(), result: vi.fn(), pages: vi.fn(), correct: vi.fn(),
          approve: vi.fn(), reprocess: vi.fn(), reprocessFailed: vi.fn(), search: vi.fn(), stats: vi.fn() },
-  getApiKey: () => "",
-  setApiKey: vi.fn(),
 }));
 import { api } from "../src/api.js";
 import DocumentDetail from "../src/components/DocumentDetail.jsx";

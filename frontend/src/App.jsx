@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { clearApiKey, getApiKey, setApiKey } from "./api";
 import DocumentDetail from "./components/DocumentDetail";
 import DocumentList from "./components/DocumentList";
 import Search from "./components/Search";
@@ -9,18 +8,7 @@ import Upload from "./components/Upload";
 export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [tick, setTick] = useState(0);
-  const [ownerKey, setOwnerKey] = useState(getApiKey());
-  const [keyDraft, setKeyDraft] = useState("");
   const refresh = () => setTick((t) => t + 1);
-  const saveKey = () => {
-    setApiKey(keyDraft);
-    setOwnerKey(getApiKey());
-    setKeyDraft("");
-  };
-  const forgetKey = () => {
-    clearApiKey();
-    setOwnerKey("");
-  };
 
   return (
     <div className="app">
@@ -31,27 +19,6 @@ export default function App() {
             <h1>DocIntel</h1>
             <p>Document intelligence workspace</p>
           </div>
-        </div>
-        <div className="owner-key" aria-label="Owner API key">
-          {ownerKey ? (
-            <>
-              <span className="muted">Owner key active</span>
-              <button className="ghost" onClick={forgetKey}>Clear key</button>
-            </>
-          ) : (
-            <form className="row" onSubmit={(e) => { e.preventDefault(); saveKey(); }}>
-              <label className="sr-only" htmlFor="owner-api-key">Owner API key</label>
-              <input
-                id="owner-api-key"
-                type="password"
-                value={keyDraft}
-                onChange={(e) => setKeyDraft(e.target.value)}
-                placeholder="Owner API key"
-                autoComplete="off"
-              />
-              <button className="ghost" type="submit" disabled={!keyDraft.trim()}>Use key</button>
-            </form>
-          )}
         </div>
         <StatsBar refreshKey={tick} />
       </header>

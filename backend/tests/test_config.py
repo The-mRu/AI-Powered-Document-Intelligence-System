@@ -14,9 +14,8 @@ def test_development_defaults_preserve_local_configuration(monkeypatch):
     assert "http://localhost:3000" in settings.cors_origins
 
 
-def test_production_requires_external_services_and_authentication(monkeypatch):
+def test_production_requires_external_services(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    monkeypatch.setenv("API_KEY", "test-api-key")
     with pytest.raises(ValueError, match="DATABASE_URL"):
         Settings(environment="production", _env_file=None)
 
@@ -27,7 +26,6 @@ def test_production_accepts_explicit_configuration():
         database_url="postgresql+psycopg://user:pass@example.supabase.co:5432/postgres",
         redis_url="redis://example-redis:6379/0",
         openai_api_key="test-key",
-        api_key="test-api-key",
         cors_origins="https://frontend.example",
     )
 
@@ -42,7 +40,6 @@ def test_production_rejects_wildcard_cors():
             database_url="postgresql+psycopg://user:pass@example.supabase.co:5432/postgres",
             redis_url="redis://example-redis:6379/0",
             openai_api_key="test-key",
-            api_key="test-api-key",
             cors_origins="*",
         )
 
@@ -54,7 +51,6 @@ def test_production_demo_mode_does_not_require_redis_default():
         storage_backend="supabase",
         database_url="******example.supabase.co:5432/postgres",
         openai_api_key="test-key",
-        api_key="test-api-key",
         cors_origins="https://frontend.example",
         supabase_url="https://example.supabase.co",
         supabase_service_role_key="test-service-key",
