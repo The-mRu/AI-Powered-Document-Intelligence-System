@@ -1,0 +1,8 @@
+{
+  "_source": "OpenAI API pricing page, accessed 2026-10-31",
+  "_url": "https://developers.openai.com/api/docs/pricing",
+  "gpt-4o-mini": {
+    "input_per_1m": 0.15,
+    "output_per_1m": 0.60
+  }
+}

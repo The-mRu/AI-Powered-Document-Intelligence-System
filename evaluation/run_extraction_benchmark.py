@@ -117,7 +117,7 @@ def run_one(sessionmaker, record: dict, storage_dir: Path, runs: int) -> list[di
     from app.db.models import ProcessingEvent
     from app.workers.pipeline import run_pipeline
 
-    source = ROOT / record["path"]
+    source = ROOT / Path(record["path"].replace("\\", "/"))
     doc_id = create_document(sessionmaker, source, storage_dir, record["filename"])
     results = []
     for run_number in range(1, runs + 1):

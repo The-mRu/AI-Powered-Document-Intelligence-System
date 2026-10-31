@@ -1,0 +1,131 @@
+{
+  "created_at": "2026-10-31T10:44:14.279058+00:00",
+  "configuration": {
+    "runs_per_valid_document": 3,
+    "embeddings": "bypassed_with_benchmark_noop",
+    "celery": "not_used_direct_run_pipeline",
+    "database": "dedicated_database_required",
+    "storage": "/workspace/evaluation/.benchmark-storage"
+  },
+  "valid_document_count": 15,
+  "expected_failure_count": 4,
+  "scope": "expected_failures",
+  "results": [
+    {
+      "filename": "corrupted.pdf",
+      "document_type": "expected_failure",
+      "run_number": 1,
+      "processing_status": "failed",
+      "extraction_status": "not_run",
+      "validation_status": "not_run",
+      "document_status": "failed",
+      "processing_time_ms": 124.49,
+      "processing_stage_ms": 42,
+      "extraction_time_ms": null,
+      "validation_time_ms": null,
+      "needs_review": null,
+      "model": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "raw_extracted": null,
+      "error": {
+        "code": "corrupted_file",
+        "message": "Cannot open PDF: Failed to open file '/workspace/evaluation/.benchmark-storage/corrupted.benchmark.pdf' as type pdf."
+      },
+      "events": [
+        {
+          "stage": "processing",
+          "status": "failed",
+          "duration_ms": 42
+        }
+      ]
+    },
+    {
+      "filename": "empty.pdf",
+      "document_type": "expected_failure",
+      "run_number": 1,
+      "processing_status": "failed",
+      "extraction_status": "not_run",
+      "validation_status": "not_run",
+      "document_status": "failed",
+      "processing_time_ms": 31.44,
+      "processing_stage_ms": 10,
+      "extraction_time_ms": null,
+      "validation_time_ms": null,
+      "needs_review": null,
+      "model": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "raw_extracted": null,
+      "error": {
+        "code": "corrupted_file",
+        "message": "File is empty"
+      },
+      "events": [
+        {
+          "stage": "processing",
+          "status": "failed",
+          "duration_ms": 10
+        }
+      ]
+    },
+    {
+      "filename": "password-protected.pdf",
+      "document_type": "expected_failure",
+      "run_number": 1,
+      "processing_status": "failed",
+      "extraction_status": "not_run",
+      "validation_status": "not_run",
+      "document_status": "failed",
+      "processing_time_ms": 163.8,
+      "processing_stage_ms": 76,
+      "extraction_time_ms": null,
+      "validation_time_ms": null,
+      "needs_review": null,
+      "model": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "raw_extracted": null,
+      "error": {
+        "code": "encrypted_file",
+        "message": "PDF is password protected"
+      },
+      "events": [
+        {
+          "stage": "processing",
+          "status": "failed",
+          "duration_ms": 76
+        }
+      ]
+    },
+    {
+      "filename": "executable-renamed.pdf",
+      "document_type": "expected_failure",
+      "run_number": 1,
+      "processing_status": "failed",
+      "extraction_status": "not_run",
+      "validation_status": "not_run",
+      "document_status": "failed",
+      "processing_time_ms": 41.94,
+      "processing_stage_ms": 7,
+      "extraction_time_ms": null,
+      "validation_time_ms": null,
+      "needs_review": null,
+      "model": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "raw_extracted": null,
+      "error": {
+        "code": "unsupported_file",
+        "message": "Unsupported file type: .pdf"
+      },
+      "events": [
+        {
+          "stage": "processing",
+          "status": "failed",
+          "duration_ms": 7
+        }
+      ]
+    }
+  ]
+}
