@@ -18,6 +18,12 @@ def item(desc, qty, price, total, flags=None):
             "confidence": 0.9, "evidence": "x", "flags": flags or []}
 
 
+def discounted_item(desc, qty, price, total, discount):
+    value = item(desc, qty, price, total)
+    value["discount"] = discount
+    return value
+
+
 SLICED = {
     "invoice_number": f("INV-3337"), "invoice_date": f("2016-01-25"),
     "supplier_name": f("DEMO - Sliced Invoices"), "customer_name": f("Test Business"),
@@ -127,6 +133,27 @@ def test_shipping_and_payments_are_included_in_reconciliation():
     assert "balance_due_consistent" in rules(r, "info")
 
 
+def test_trade_discount_and_other_deductions_reconcile_without_double_counting():
+    x = mod(SLICED, subtotal=f("300.00"), tax=f("30.00"), shipping=f("10.00"),
+            trade_discount=f("20.00"), other_deductions=f("5.00"), total=f("315.00"))
+    assert "total_mismatch" not in rules(run(x), "error")
+
+    included = mod(SLICED, subtotal=f("280.00"), tax=f("28.00"), discount=f("20.00"), total=f("308.00"))
+    assert "total_mismatch" not in rules(run(included), "error")
+
+
+def test_missing_optional_charges_default_to_zero():
+    x = mod(SLICED, subtotal=f("100.00"), tax=f("10.00"), total=f("110.00"))
+    assert "total_mismatch" not in rules(run(x), "error")
+
+
+def test_rounding_tolerance_is_two_cents():
+    within = mod(SLICED, subtotal=f("100.00"), tax=f("10.00"), total=f("110.02"))
+    outside = mod(SLICED, subtotal=f("100.00"), tax=f("10.00"), total=f("110.03"))
+    assert "total_mismatch" not in rules(run(within), "error")
+    assert "total_mismatch" in rules(run(outside), "error")
+
+
 def test_incorrect_printed_total_is_reported():
     x = mod(SLICED, subtotal=f("480.00"), tax=f("48.00"), discount=f("48.00"),
             total=f("12000.00"),
@@ -138,7 +165,38 @@ def test_incorrect_printed_total_is_reported():
 def test_line_total_mismatch_with_no_tax_explanation_is_an_error():
     x = mod(SLICED, line_items=[item("Web Design", "2", "85.00", "85.00")])
     e = next(i for i in run(x).issues if i.rule == "line_total_mismatch")
-    assert e.details == {"expected": "170.00", "actual": "85.00"}
+    assert e.details == {"line_number": 1, "expected": "170.00", "actual": "85.00", "discrepancy": "85.00"}
+
+
+def test_percentage_line_discounts_are_applied_once():
+    x = mod(SLICED, subtotal=f("239.00"), tax=f("0"), total=f("239.00"), line_items=[
+        discounted_item("Five percent item", "1", "100.00", "95.00", "5%"),
+        discounted_item("Ten percent item", "2", "80.00", "144.00", "10%"),
+    ])
+    assert "line_total_mismatch" not in rules(run(x), "error")
+
+
+def test_fixed_and_percentage_discounts_can_be_mixed():
+    x = mod(SLICED, subtotal=f("212.50"), tax=f("0"), total=f("212.50"), line_items=[
+        discounted_item("Fixed discount", "2", "100.00", "190.00", "10.00"),
+        discounted_item("Percentage discount", "1", "25.00", "22.50", "10%"),
+    ])
+    assert "line_total_mismatch" not in rules(run(x), "error")
+
+
+def test_currency_symbols_and_commas_are_cleaned_before_decimal_parsing():
+    x = mod(SLICED, subtotal=f("$239.00"), tax=f("₹0.00"), total=f("$239.00"), line_items=[
+        discounted_item("Fixed discount", "2", "$100.00", "₹190.00", "$10.00"),
+        discounted_item("Percentage discount", "1", "25.00", "22.50", "10%"),
+    ])
+    assert "line_total_mismatch" not in rules(run(x), "error")
+    assert "total_mismatch" not in rules(run(x), "error")
+
+
+def test_discounted_line_total_mismatch_reports_line_and_discrepancy():
+    x = mod(SLICED, line_items=[discounted_item("Wrong", "1", "100.00", "94.00", "5%")])
+    issue = next(i for i in run(x).issues if i.rule == "line_total_mismatch")
+    assert issue.details == {"line_number": 1, "expected": "95.00", "actual": "94.00", "discrepancy": "1.00"}
 
 
 def test_single_wrong_line_is_not_excused_as_tax():

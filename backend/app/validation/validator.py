@@ -10,9 +10,7 @@ So we test both identities and only fail when NEITHER holds.
 """
 import re
 from datetime import date, datetime, timedelta
-from decimal import Decimal
-
-from app.extraction.verify import to_decimal
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from .duplicates import DuplicateIndex, key, record_from_extraction
 from .models import Issue, ValidationReport
@@ -22,13 +20,36 @@ REQUIRED = ["invoice_number", "invoice_date", "supplier_name", "total"]
 RECOMMENDED = ["customer_name", "currency"]
 HUGE = Decimal("1000000000")
 MAX_TAX_RATE = Decimal("0.35")
+CENT = Decimal("0.01")
 
 _TAX_ID_LOOSE = re.compile(r"\b[0-9OIl]{2}[A-Z]{5}[0-9OIl]{4}[A-Z][0-9A-Z][A-Z][0-9A-Z]\b")
 _DIGIT_SLOTS = (slice(0, 2), slice(7, 11))  # positions that must be digits in an Indian GSTIN
 
 
+def _clean_decimal(value) -> Decimal | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    negative = text.startswith("(") and text.endswith(")")
+    if negative:
+        text = text[1:-1].strip()
+    text = text.replace(",", "")
+    text = re.sub(r"[$€£₹]", "", text).strip()
+    if text.startswith("+"):
+        text = text[1:].strip()
+    if not re.fullmatch(r"-?\d+(?:\.\d+)?", text):
+        return None
+    try:
+        parsed = Decimal(text)
+    except InvalidOperation:
+        return None
+    return -parsed if negative else parsed
+
+
 def _d(extraction: dict, name: str) -> Decimal | None:
-    return to_decimal((extraction.get(name) or {}).get("value"))
+    return _clean_decimal((extraction.get(name) or {}).get("value"))
 
 
 def _v(extraction: dict, name: str):
@@ -36,7 +57,20 @@ def _v(extraction: dict, name: str):
 
 
 def _s(x: Decimal) -> str:
-    return format(x, "f")
+    return format(x.quantize(CENT, rounding=ROUND_HALF_UP), "f")
+
+
+def _discount_amount(extraction: dict, name: str, base: Decimal | None) -> Decimal | None:
+    raw = _v(extraction, name)
+    if raw is None:
+        return None
+    value = str(raw).strip()
+    if value.endswith("%"):
+        rate = _clean_decimal(value[:-1].strip())
+        if rate is None or base is None:
+            return None
+        return (abs(base) * abs(rate) / Decimal(100)).quantize(CENT, rounding=ROUND_HALF_UP)
+    return _clean_decimal(value)
 
 
 def validate_invoice(extraction: dict, *, source_text: str | None = None, doc_id: str | None = None,
@@ -111,7 +145,13 @@ def _numeric_sanity(x, issues, tol, today):
 
 
 def _header_arithmetic(x, issues, tol):
-    sub, tax, disc, total = _d(x, "subtotal"), _d(x, "tax"), _d(x, "discount"), _d(x, "total")
+    sub, tax, total = _d(x, "subtotal"), _d(x, "tax"), _d(x, "total")
+    trade = _discount_amount(x, "trade_discount", sub)
+    if trade is None:
+        trade = _discount_amount(x, "discount", sub)
+    deduction = _d(x, "other_deductions")
+    if deduction is None:
+        deduction = _d(x, "deductions")
     shipping = _d(x, "shipping") or Decimal(0)
     other = _d(x, "other_charges") or Decimal(0)
     if total is None or sub is None:
@@ -119,10 +159,17 @@ def _header_arithmetic(x, issues, tol):
             issues.append(Issue("cannot_verify_totals", "warning",
                                 "Subtotal or total is missing, so the amounts cannot be cross-checked", "total"))
     else:
-        disc = abs(disc) if disc is not None else Decimal(0)
+        trade = abs(trade) if trade is not None else Decimal(0)
+        deduction = abs(deduction) if deduction is not None else Decimal(0)
         t = tax if tax is not None else Decimal(0)
-        identities = {"tax_exclusive": sub + t - disc + shipping + other,
-                      "tax_inclusive": sub - disc + shipping + other}
+        base_exclusive = sub + t + shipping + other - deduction
+        base_inclusive = sub + shipping + other - deduction
+        identities = {
+            "tax_exclusive": base_exclusive - trade,
+            "tax_inclusive": base_inclusive - trade,
+            "tax_exclusive_discount_included": base_exclusive,
+            "tax_inclusive_discount_included": base_inclusive,
+        }
         matched = [k for k, v in identities.items() if abs(v - total) <= tol]
         if matched:
             used = matched[0]
@@ -133,13 +180,18 @@ def _header_arithmetic(x, issues, tol):
                                     "Subtotal appears to already include tax", "subtotal"))
         else:
             issues.append(Issue("total_mismatch", "error",
-                                f"Totals do not reconcile: subtotal {_s(sub)} + tax {_s(t)} - discount {_s(disc)} "
-                                f"+ shipping {_s(shipping)} + other charges {_s(other)} "
-                                f"= {_s(identities['tax_exclusive'])}, but total is {_s(total)}",
-                                "total", {"subtotal": _s(sub), "tax": _s(t), "discount": _s(disc), "total": _s(total),
+                                f"Totals do not reconcile: expected total candidates "
+                                f"{', '.join(f'{k}={_s(v)}' for k, v in identities.items())}, "
+                                f"but actual total is {_s(total)}",
+                                "total", {"subtotal": _s(sub), "tax": _s(t), "discount": _s(trade), "total": _s(total),
                                           "expected_tax_exclusive": _s(identities["tax_exclusive"]),
                                           "expected_tax_inclusive": _s(identities["tax_inclusive"]),
+                                          "expected_tax_exclusive_discount_included": _s(
+                                              identities["tax_exclusive_discount_included"]),
+                                          "expected_tax_inclusive_discount_included": _s(
+                                              identities["tax_inclusive_discount_included"]),
                                           "shipping": _s(shipping), "other_charges": _s(other),
+                                          "other_deductions": _s(deduction),
                                           "tax_missing": tax is None}))
     payments, balance = _d(x, "payments_received"), _d(x, "balance_due")
     if payments is not None and balance is not None:
@@ -154,6 +206,23 @@ def _header_arithmetic(x, issues, tol):
                                                 "payments_received": _s(payments)}))
 
 
+def _line_expected_total(gross: Decimal, raw_discount) -> tuple[Decimal, bool]:
+    """Return a net line total and whether a non-empty discount was malformed."""
+    if raw_discount is None or not str(raw_discount).strip():
+        return gross, False
+    value = str(raw_discount).strip()
+    if value.endswith("%"):
+        percentage = _clean_decimal(value[:-1].strip())
+        if percentage is None:
+            return gross, True
+        expected = gross * (Decimal(1) - percentage / Decimal(100))
+        return expected.quantize(CENT, rounding=ROUND_HALF_UP), False
+    amount = _clean_decimal(value)
+    if amount is None:
+        return gross, True
+    return (gross - abs(amount)).quantize(CENT, rounding=ROUND_HALF_UP), False
+
+
 def _line_items(x, issues, tol):
     items = x.get("line_items") or []
     if not items:
@@ -163,7 +232,9 @@ def _line_items(x, issues, tol):
 
     parsed, missing_total, mismatches = [], [], []
     for i, it in enumerate(items):
-        qty, price, lt = to_decimal(it.get("quantity")), to_decimal(it.get("unit_price")), to_decimal(it.get("line_total"))
+        qty = _clean_decimal(it.get("quantity"))
+        price = _clean_decimal(it.get("unit_price"))
+        lt = _clean_decimal(it.get("line_total"))
         parsed.append(lt)
         if it.get("flags"):
             issues.append(Issue("line_item_uncertain", "warning", f"Line item {i + 1} failed verification: "
@@ -171,8 +242,14 @@ def _line_items(x, issues, tol):
         if lt is None:
             missing_total.append(i + 1)
         if qty is not None and price is not None and lt is not None:
-            exp = qty * price
-            if abs(exp - lt) > tol + Decimal("0.01"):
+            gross = qty * price
+            raw_discount = it.get("discount")
+            exp, discount_error = _line_expected_total(gross, raw_discount)
+            if discount_error:
+                issues.append(Issue("invalid_discount", "warning",
+                                    f"Line {i + 1} discount '{raw_discount}' is not a valid percentage or amount",
+                                    f"line_items[{i}].discount", {"value": raw_discount}))
+            if abs(exp - lt) > tol:
                 mismatches.append((i, exp, lt))
     if missing_total:
         issues.append(Issue("line_total_missing", "warning",
@@ -191,8 +268,10 @@ def _line_items(x, issues, tol):
         else:
             for i, exp, lt in mismatches:
                 issues.append(Issue("line_total_mismatch", "error",
-                                    f"Line {i + 1}: quantity x unit price = {_s(exp)}, but line total is {_s(lt)}",
-                                    f"line_items[{i}]", {"expected": _s(exp), "actual": _s(lt)}))
+                                    f"Line {i + 1}: expected line total {_s(exp)}, but actual line total is {_s(lt)} "
+                                    f"(discrepancy {_s(abs(exp - lt))})",
+                                    f"line_items[{i}]", {"line_number": i + 1, "expected": _s(exp),
+                                                        "actual": _s(lt), "discrepancy": _s(abs(exp - lt))}))
 
     if not missing_total and (sub is not None or total is not None):
         s = sum(p for p in parsed if p is not None)
